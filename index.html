@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CM-X GENESIS: DAYLIGHT EDITION</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    
+
+    <style>
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Orbitron:wght@500;700;900&display=swap');
+
+
+
+        /* --- THEME: DAYLIGHT NEON (வெளிச்சமான பின்னணி + நியான் கலர்ஸ்) --- */
+
+        body {
+
+            background-color: #f0f4f8; /* Soft Bright Blue-White */
+
+            color: #1e293b; /* Dark Slate for Text (Readable in Day) */
+
+            font-family: 'Inter', sans-serif;
+
+        }
+
+
+
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+
+
+
+        /* GLASS PANELS (White Glass) */
+
+        .glass-panel {
+
+            background: rgba(255, 255, 255, 0.9);
+
+            border: 1px solid rgba(255, 255, 255, 0.6);
+
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); /* Soft Shadow */
+
+            border-radius: 16px;
+
+            backdrop-filter: blur(10px);
+
+        }
+
+
+
+        /* NEON ACCENTS (பகலிலும் ஜொலிக்கும் வண்ணங்கள்) */
+
+        .neon-blue { color: #2563eb; text-shadow: 0 0 10px rgba(37, 99, 235, 0.3); }
+
+        .neon-green { color: #059669; text-shadow: 0 0 10px rgba(5, 150, 105, 0.3); }
+
+        .neon-red { color: #dc2626; text-shadow: 0 0 10px rgba(220, 38, 38, 0.3); }
+
+        .neon-amber { color: #d97706; text-shadow: 0 0 10px rgba(217, 119, 6, 0.3); }
+
+
+
+        /* HEADER ANIMATION */
+
+        .brand-text {
+
+            background: linear-gradient(90deg, #2563eb, #9333ea);
+
+            -webkit-background-clip: text;
+
+            -webkit-text-fill-color: transparent;
+
+            font-weight: 900;
+
+        }
+
+
+
+        /* PHYSICS GAUGES */
+
+        .gauge-bar-bg { background: #e2e8f0; border-radius: 99px; height: 10px; width: 100%; position: relative; overflow: hidden; }
+
+        .gauge-fill { height: 100%; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        
+
+        /* SCROLLBAR */
+
+        ::-webkit-scrollbar { width: 6px; }
+
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+    </style>
+
+</head>
+
+<body class="p-4 md:p-6 min-h-screen flex flex-col gap-6">
+
+
+
+    <header class="glass-panel p-4 flex flex-col md:flex-row justify-between items-center sticky top-0 z-50">
+
+        <div class="flex items-center gap-4">
+
+            <div class="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+
+                <i class="fas fa-brain text-2xl animate-pulse"></i>
+
+            </div>
+
+            <div>
+
+                <h1 class="text-2xl font-orbitron brand-text tracking-wider">CM-X GENESIS <span class="text-sm bg-blue-100 text-blue-700 px-2 py-0.5 rounded ml-1">V3</span></h1>
+
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Digital Twin & Artificial Brain</p>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="flex gap-4 items-center mt-3 md:mt-0">
+
+            <div class="flex flex-col items-end">
+
+                <span class="text-[10px] font-bold text-slate-400 uppercase">SYSTEM STATUS</span>
+
+                <div class="flex items-center gap-2">
+
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
+
+                    <span class="text-sm font-bold text-green-600">ONLINE</span>
+
+                </div>
+
+            </div>
+
+            
+
+            <button onclick="toggleVoice()" id="voice-btn" class="p-3 rounded-full bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition shadow-sm border border-slate-200">
+
+                <i class="fas fa-volume-mute"></i>
+
+            </button>
+
+            
+
+            <button onclick="toggleSimulation()" id="sim-btn" class="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 transition flex items-center gap-2">
+
+                <i class="fas fa-play"></i> START
+
+            </button>
+
+        </div>
+
+    </header>
+
+
+
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow">
+
+
+
+        <div class="space-y-6">
+
+            
+
+            <div class="glass-panel p-5">
+
+                <div class="flex justify-between mb-4">
+
+                    <h3 class="font-bold text-slate-700 flex items-center gap-2">
+
+                        <i class="fas fa-users-cog text-indigo-500"></i> AI COUNCIL VOTES
+
+                    </h3>
+
+                    <span class="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-600">XP: <span id="xp-val">0</span></span>
+
+                </div>
+
+                <div class="h-64 relative">
+
+                    <canvas id="radarChart"></canvas>
+
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mt-4 text-[10px] font-bold text-slate-500 text-center">
+
+                    <div class="bg-blue-50 p-1 rounded text-blue-600 border border-blue-100">PHYSICS (Velocity)</div>
+
+                    <div class="bg-green-50 p-1 rounded text-green-600 border border-green-100">TREND (SuperTrend)</div>
+
+                    <div class="bg-orange-50 p-1 rounded text-orange-600 border border-orange-100">OI (Option Chain)</div>
+
+                    <div class="bg-red-50 p-1 rounded text-red-600 border border-red-100">VOLATILITY (VIX)</div>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="glass-panel p-5">
+
+                <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
+
+                    <i class="fas fa-atom text-amber-500"></i> PHYSICS KINEMATICS
+
+                </h3>
+
+                
+
+                <div class="mb-5">
+
+                    <div class="flex justify-between text-xs font-bold mb-1">
+
+                        <span class="text-slate-500">VELOCITY ($v)</span>
+
+                        <span class="text-blue-600 text-lg" id="vel-val">0.00</span>
+
+                    </div>
+
+                    <div class="gauge-bar-bg">
+
+                        <div id="vel-bar" class="gauge-fill bg-blue-500 absolute left-1/2 w-0"></div>
+
+                    </div>
+
+                </div>
+
+
+
+                <div>
+
+                    <div class="flex justify-between text-xs font-bold mb-1">
+
+                        <span class="text-slate-500">ACCELERATION ($a)</span>
+
+                        <span class="text-purple-600 text-lg" id="acc-val">0.00</span>
+
+                    </div>
+
+                    <div class="gauge-bar-bg">
+
+                        <div id="acc-bar" class="gauge-fill bg-purple-500 absolute left-1/2 w-0"></div>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-800 italic" id="physics-msg">
+
+                    Waiting for market data momentum...
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="glass-panel p-5 lg:col-span-2 flex flex-col relative">
+
+            <div class="flex justify-between items-center mb-2">
+
+                <div>
+
+                    <h3 class="font-bold text-slate-800 text-lg">NIFTY 50 LIVE SIMULATION</h3>
+
+                    <p class="text-xs text-slate-500">Real-time Tick Data • 1 Sec Refresh</p>
+
+                </div>
+
+                <div class="text-right">
+
+                    <div class="text-3xl font-black text-slate-800 tracking-tight" id="live-price">19,500.00</div>
+
+                    <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">+0.00%</span>
+
+                </div>
+
+            </div>
+
+            
+
+            <div class="flex-grow bg-white rounded-lg border border-slate-100 p-2 shadow-inner">
+
+                <canvas id="marketChart"></canvas>
+
+            </div>
+
+
+
+            <div id="trade-signal" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-2xl shadow-2xl border-2 text-center z-10 animate-bounce">
+
+                <div class="text-sm text-slate-500 font-bold uppercase">Signal Detected</div>
+
+                <div class="text-4xl font-black my-2" id="signal-text">BUY CE</div>
+
+                <div class="text-xs text-slate-400" id="signal-desc">Physics + Trend Confluence</div>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="glass-panel lg:col-span-3 p-5 grid grid-cols-1 md:grid-cols-3 gap-6">
+
+            
+
+            <div class="md:col-span-2 flex flex-col h-60">
+
+                <h3 class="font-bold text-slate-700 mb-2 flex items-center gap-2">
+
+                    <i class="fas fa-comment-dots text-green-500"></i> CHELLAKILI'S MENTOR MODE
+
+                </h3>
+
+                <div id="chat-box" class="flex-grow bg-slate-50 rounded-lg border border-slate-200 p-4 overflow-y-auto text-sm space-y-2 shadow-inner">
+
+                    <div class="flex gap-3">
+
+                        <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">AI</div>
+
+                        <div class="bg-white p-2 rounded-lg border border-slate-200 shadow-sm text-slate-700">
+
+                            Vanakkam Boss! I am ready. Click <b>START</b> to begin the simulation. I will speak when I see a trade.
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="flex flex-col h-60">
+
+                <h3 class="font-bold text-slate-700 mb-2 flex items-center gap-2">
+
+                    <i class="fas fa-sliders-h text-rose-500"></i> TEACHER OVERRIDE
+
+                </h3>
+
+                <div class="bg-slate-50 rounded-lg border border-slate-200 p-4 flex-grow flex flex-col justify-center gap-3">
+
+                    <p class="text-xs text-center text-slate-500 mb-2">Adjust Agent Weights Manually</p>
+
+                    <div class="grid grid-cols-2 gap-3">
+
+                        <button onclick="adjustWeight(0, 0.1)" class="py-2 bg-blue-100 text-blue-700 rounded font-bold text-xs hover:bg-blue-200">BOOST PHYSICS</button>
+
+                        <button onclick="adjustWeight(1, 0.1)" class="py-2 bg-green-100 text-green-700 rounded font-bold text-xs hover:bg-green-200">BOOST TREND</button>
+
+                        <button onclick="adjustWeight(2, 0.1)" class="py-2 bg-orange-100 text-orange-700 rounded font-bold text-xs hover:bg-orange-200">BOOST OPTION</button>
+
+                        <button onclick="adjustWeight(0, -0.2)" class="py-2 bg-red-100 text-red-700 rounded font-bold text-xs hover:bg-red-200">PUNISH ERROR</button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+    </main>
+
+
+
+    <script>
+
+        // --- 1. VOICE MODULE (SPEAKER) ---
+
+        let voiceEnabled = false;
+
+        
+
+        function toggleVoice() {
+
+            voiceEnabled = !voiceEnabled;
+
+            const btn = document.getElementById('voice-btn');
+
+            if(voiceEnabled) {
+
+                btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+
+                btn.className = "p-3 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-300 transition";
+
+                speak("Voice Systems Online, Boss.");
+
+            } else {
+
+                btn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+
+                btn.className = "p-3 rounded-full bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition shadow-sm border border-slate-200";
+
+            }
+
+        }
+
+
+
+        function speak(text) {
+
+            if (!voiceEnabled) return;
+
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+
+            utterance.rate = 1.1;
+
+            utterance.pitch = 1.0;
+
+            // Try to find a clear English voice
+
+            const voices = window.speechSynthesis.getVoices();
+
+            const preferredVoice = voices.find(voice => voice.name.includes('Google US English')) || voices[0];
+
+            utterance.voice = preferredVoice;
+
+            window.speechSynthesis.speak(utterance);
+
+        }
+
+
+
+        // --- 2. CHART CONFIGURATION ---
+
+        
+
+        // Radar Chart (Agents)
+
+        const ctxRadar = document.getElementById('radarChart').getContext('2d');
+
+        const radarChart = new Chart(ctxRadar, {
+
+            type: 'radar',
+
+            data: {
+
+                labels: ['Physics', 'Trend', 'Options', 'Volatility', 'Pattern'],
+
+                datasets: [{
+
+                    label: 'Voting Power',
+
+                    data: [1.5, 1.0, 1.2, 0.8, 0.5],
+
+                    backgroundColor: 'rgba(37, 99, 235, 0.2)', // Blue
+
+                    borderColor: '#2563eb',
+
+                    pointBackgroundColor: '#2563eb',
+
+                    borderWidth: 2
+
+                }]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                scales: {
+
+                    r: {
+
+                        angleLines: { color: '#e2e8f0' },
+
+                        grid: { color: '#e2e8f0' },
+
+                        pointLabels: { font: { size: 10, weight: 'bold' }, color: '#64748b' },
+
+                        suggestedMin: 0,
+
+                        suggestedMax: 3
+
+                    }
+
+                },
+
+                plugins: { legend: { display: false } }
+
+            }
+
+        });
+
+
+
+        // Market Line Chart
+
+        const ctxMarket = document.getElementById('marketChart').getContext('2d');
+
+        const marketChart = new Chart(ctxMarket, {
+
+            type: 'line',
+
+            data: {
+
+                labels: Array(50).fill(''),
+
+                datasets: [{
+
+                    label: 'Price',
+
+                    data: Array(50).fill(19500),
+
+                    borderColor: '#0f172a', // Dark Slate
+
+                    borderWidth: 2,
+
+                    tension: 0.4,
+
+                    pointRadius: 0,
+
+                    fill: {
+
+                        target: 'origin',
+
+                        above: 'rgba(255, 255, 255, 0)'
+
+                    }
+
+                }, {
+
+                    label: 'VWAP',
+
+                    data: Array(50).fill(19500),
+
+                    borderColor: '#f59e0b', // Amber
+
+                    borderDash: [5, 5],
+
+                    borderWidth: 1,
+
+                    pointRadius: 0
+
+                }]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                scales: {
+
+                    x: { display: false },
+
+                    y: { display: true, position: 'right', grid: { color: '#f1f5f9' } }
+
+                },
+
+                plugins: { legend: { display: false } },
+
+                animation: false
+
+            }
+
+        });
+
+
+
+        // --- 3. SIMULATION LOGIC ---
+
+        let isRunning = false;
+
+        let price = 19500;
+
+        let vwap = 19500;
+
+        let history = [];
+
+        
+
+        function toggleSimulation() {
+
+            isRunning = !isRunning;
+
+            const btn = document.getElementById('sim-btn');
+
+            if(isRunning) {
+
+                btn.innerHTML = '<i class="fas fa-stop"></i> STOP';
+
+                btn.classList.replace('bg-indigo-600', 'bg-red-600');
+
+                btn.classList.replace('hover:bg-indigo-700', 'hover:bg-red-700');
+
+                simulationLoop();
+
+            } else {
+
+                btn.innerHTML = '<i class="fas fa-play"></i> START';
+
+                btn.classList.replace('bg-red-600', 'bg-indigo-600');
+
+                btn.classList.replace('hover:bg-red-700', 'hover:bg-indigo-700');
+
+            }
+
+        }
+
+
+
+        function simulationLoop() {
+
+            if(!isRunning) return;
+
+
+
+            // 1. Generate Data
+
+            const change = (Math.random() - 0.5) * 10;
+
+            price += change;
+
+            vwap = (price + vwap) / 2;
+
+            history.push(price);
+
+            if(history.length > 50) history.shift();
+
+
+
+            // 2. Physics Calculation (Velocity & Accel)
+
+            let velocity = 0;
+
+            let acceleration = 0;
+
+            if(history.length > 2) {
+
+                velocity = price - history[history.length - 2];
+
+                acceleration = velocity - (history[history.length - 2] - history[history.length - 3]);
+
+            }
+
+
+
+            // 3. Update UI
+
+            document.getElementById('live-price').innerText = price.toFixed(2);
+
+            document.getElementById('vel-val').innerText = velocity.toFixed(2);
+
+            document.getElementById('acc-val').innerText = acceleration.toFixed(2);
+
+
+
+            // Update Gauges (Visual)
+
+            const vWidth = Math.min(Math.abs(velocity) * 10, 50); // Scale factor
+
+            const vDir = velocity >= 0 ? 'left: 50%' : `right: 50%; left: auto`;
+
+            const vColor = velocity >= 0 ? 'bg-blue-500' : 'bg-red-500';
+
+            
+
+            const vBar = document.getElementById('vel-bar');
+
+            vBar.style.width = vWidth + '%';
+
+            vBar.className = `gauge-fill absolute ${vColor}`;
+
+            if(velocity < 0) vBar.style.left = (50 - vWidth) + '%';
+
+            else vBar.style.left = '50%';
+
+
+
+            const aWidth = Math.min(Math.abs(acceleration) * 10, 50);
+
+            const aBar = document.getElementById('acc-bar');
+
+            aBar.className = `gauge-fill absolute ${acceleration >= 0 ? 'bg-purple-500' : 'bg-orange-500'}`;
+
+            if(acceleration < 0) aBar.style.left = (50 - aWidth) + '%';
+
+            else aBar.style.left = '50%';
+
+
+
+            // Update Charts
+
+            marketChart.data.datasets[0].data = [...history]; // Copy array
+
+            marketChart.data.datasets[1].data = Array(history.length).fill(vwap);
+
+            marketChart.update();
+
+
+
+            // 4. Brain Decision (Simulated)
+
+            checkTradeSignal(velocity, acceleration);
+
+
+
+            setTimeout(simulationLoop, 1000); // 1 Second Tick
+
+        }
+
+
+
+        function checkTradeSignal(v, a) {
+
+            const signalBox = document.getElementById('trade-signal');
+
+            const physicsMsg = document.getElementById('physics-msg');
+
+
+
+            // Simple Logic for Demo
+
+            if (v > 3 && a > 1) {
+
+                triggerSignal("BUY CE 🚀", "Strong Momentum Detected", "text-green-600", "border-green-500");
+
+                physicsMsg.innerText = "Physics Engine: Positive Force detected. Suggesting Entry.";
+
+            } else if (v < -3 && a < -1) {
+
+                triggerSignal("BUY PE 🩸", "Market Crash Detected", "text-red-600", "border-red-500");
+
+                physicsMsg.innerText = "Physics Engine: Negative Acceleration. Selling Pressure high.";
+
+            } else {
+
+                signalBox.classList.add('hidden');
+
+                physicsMsg.innerText = "Physics Engine: Market is ranging. Waiting for breakout...";
+
+            }
+
+        }
+
+
+
+        let lastSignalTime = 0;
+
+        function triggerSignal(text, reason, colorClass, borderClass) {
+
+            const now = Date.now();
+
+            if (now - lastSignalTime < 5000) return; // Debounce voice
+
+            
+
+            lastSignalTime = now;
+
+            const signalBox = document.getElementById('trade-signal');
+
+            const signalText = document.getElementById('signal-text');
+
+            const signalDesc = document.getElementById('signal-desc');
+
+
+
+            signalText.innerText = text;
+
+            signalText.className = `text-4xl font-black my-2 ${colorClass}`;
+
+            signalDesc.innerText = reason;
+
+            signalBox.className = `absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-2xl shadow-2xl border-4-z10 animate-bounce ${borderClass}`;
+
+            signalBox.classList.remove('hidden');
+
+
+
+            // VOICE ALERT
+
+            speak(`Alert! ${text}. ${reason}.`);
+
+            
+
+            // Log to Chat
+
+            addChatLog(text, reason);
+
+        }
+
+
+
+        function addChatLog(signal, reason) {
+
+            const chatBox = document.getElementById('chat-box');
+
+            const msg = document.createElement('div');
+
+            msg.className = "flex gap-3 fade-in";
+
+            msg.innerHTML = `
+
+                <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">AI</div>
+
+                <div class="bg-white p-2 rounded-lg border border-slate-200 shadow-sm text-slate-700">
+
+                    <span class="font-bold">${signal}</span>: ${reason}
+
+                </div>
+
+            `;
+
+            chatBox.appendChild(msg);
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+        }
+
+
+
+        function adjustWeight(index, delta) {
+
+            radarChart.data.datasets[0].data[index] += delta;
+
+            radarChart.update();
+
+            speak("Adjusting neural weights.");
+
+        }
+
+
+
+    </script>
+
+</body>
+
+</html>        
