@@ -8,12 +8,12 @@ import json
 import os
 import math
 import base64
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 from gtts import gTTS
 
 # ==========================================
-# 1. CONFIGURATION & TIME SETUP
+# 1. CONFIGURATION (Must be first)
 # ==========================================
 st.set_page_config(
     page_title="CM-X GENESIS: TIME TRAVELER",
@@ -22,71 +22,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 1. மேலே இதைச் சேர்க்கவும்
-from neural_brain import ChellakiliBrain 
-
-# ... (மற்ற கோடுகள்) ...
-
-# 2. AI பிரைனை Initialize செய்யவும் (SideBar-க்கு கீழே)
-brain_engine = ChellakiliBrain()
-
-# ... (உள்ளே எங்கே தேவையோ அங்கே பயன்படுத்தவும்) ...
-
-# உதாரணம் (Logic Section-ல்):
-if st.button("🤖 Analyze with Neural Link"):
-    with st.spinner("Chellakili is Thinking..."):
-        # இங்கே உங்க ரியல் டேட்டாவை அனுப்பவும்
-        ai_result = brain_engine.analyze_market(
-            price=current_price, 
-            rsi=rsi_val, 
-            trend="UP", 
-            fiis_data="Neutral", 
-            physics_velocity=velocity_val
-        )
-        
-        # ரிசல்ட் காட்டுதல்
-        st.success(f"DECISION: {ai_result['decision']}")
-        st.info(f"REASON: {ai_result['reason']}")
-        
-
 def get_indian_time():
     return datetime.now(pytz.timezone('Asia/Kolkata'))
-import requests  # (ஏற்கனவே இல்லன்னா இதை போடுங்க)
 
-# --- TELEGRAM FUNCTION (தகவல் தொடர்பு) ---
-def send_telegram_msg(message):
-    try:
-        # ரகசிய பெட்டியில் இருந்து கீ எடுக்குறோம்
-        bot_token = st.secrets["TELEGRAM_BOT_TOKEN"]
-        chat_id = st.secrets["TELEGRAM_CHAT_ID"]
-        
-        # மெசேஜ் அனுப்பும் URL
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        params = {"chat_id": chat_id, "text": message}
-        
-# அனுப்பு!
-    requests.get(url, params=params)
-        return True
-    except Exception as e:
-        st.error(f"Telegram Error: {e}")
-        return False
-    with st.sidebar:
-    st.header("📡 NETWORK TEST")
-    if st.button("Test Telegram Connection"):
-        send_telegram_msg("Vanakkam Boss! Jarvis Online. 🦁")
-        st.success("Message Sent!")
-# ... (ஏற்கனவே இருக்கும் உங்கள் Buy/Sell லாஜிக்) ...
-
-if decision == "BUY_CE":
-    msg = f"🚀 BUY SIGNAL DETECTED!\nPrice: {current_price}\nReason: {reason}"
-    send_telegram_msg(msg)  # <--- இங்கே தான் மெசேஜ் போகும்!
-    
-elif decision == "BUY_PE":
-    msg = f"🩸 SELL SIGNAL DETECTED!\nPrice: {current_price}\nReason: {reason}"
-    send_telegram_msg(msg)  # <--- இங்கே தான் மெசேஜ் போகும்!
-    
 # ==========================================
-# 2. MEMORY SYSTEM (SELF-IMPROVEMENT MINUTE-BY-MINUTE)
+# 2. MEMORY SYSTEM (SELF-LEARNING)
 # ==========================================
 MEMORY_FILE = "cm_x_time_memory.json"
 
@@ -101,11 +41,11 @@ def load_memory():
             "losses": 0,
             "accuracy": 0.0,
             "last_prediction": {"price": 0, "time": None, "type": None},
-            "weights": { # ஏஜெண்டுகளின் பவர்
-                "PHYSICS": 1.5,
-                "MATH": 1.2,
-                "CHAOS": 1.0,
-                "FUTURE": 1.5 # புதுசு: எதிர்கால கணிப்பு ஏஜெண்ட்
+            "weights": { 
+                "PHYSICS": 1.5, 
+                "MATH": 1.2, 
+                "CHAOS": 1.0, 
+                "FUTURE": 1.5 
             },
             "lessons": []
         }
@@ -115,42 +55,35 @@ def save_memory(memory):
         json.dump(memory, f, indent=4)
 
 def minute_learning_loop(current_price, memory):
-    """
-    நிமிடத்திற்கு ஒரு முறை தன்னைத்தானே சரிபார்க்கும் லூப்.
-    கடந்த கணிப்பு சரியாக இருந்தால் எடையை ஏற்று, தவறாக இருந்தால் குறை.
-    """
+    """நிமிடத்திற்கு ஒரு முறை தன்னைத்தானே சரிபார்க்கும் லூப்"""
     last_pred = memory.get("last_prediction", {})
     if not last_pred.get("time"): return memory
     
-    # நேரம் ஒப்பீடு (String to Time object)
     try:
         last_time = datetime.strptime(last_pred["time"], '%Y-%m-%d %H:%M:%S')
-        now = get_indian_time().replace(tzinfo=None) # Compare naive times
+        # Timezone aware comparison fix
+        now = get_indian_time().replace(tzinfo=None)
         diff_minutes = (now - last_time).total_seconds() / 60
     except: return memory
 
-    # 1 நிமிடம் ஆகிவிட்டதா?
     if diff_minutes >= 1:
-        # கணிப்பு சரிபார்ப்பு
         old_price = last_pred["price"]
-        pred_type = last_pred["type"] # BUY or SELL
+        pred_type = last_pred["type"]
         
         result = "NEUTRAL"
-        if pred_type == "BUY":
-            result = "WIN" if current_price > old_price else "LOSS"
-        elif pred_type == "SELL":
-            result = "WIN" if current_price < old_price else "LOSS"
+        if pred_type == "BUY": result = "WIN" if current_price > old_price else "LOSS"
+        elif pred_type == "SELL": result = "WIN" if current_price < old_price else "LOSS"
         
+        msg = ""
         if result == "WIN":
             memory["wins"] += 1
-            memory["weights"]["FUTURE"] += 0.02 # எதிர்கால கணிப்பு பவர் அப்
-            msg = f"✅ Learning: Prediction correct. Boosting Future Agent."
+            memory["weights"]["FUTURE"] += 0.02
+            msg = f"✅ Prediction Correct. Boosting Future Agent."
         elif result == "LOSS":
             memory["losses"] += 1
-            memory["weights"]["FUTURE"] -= 0.02 # தப்பு பண்ணா பவர் குறை
-            msg = f"❌ Learning: Prediction failed. Tuning Logic."
+            memory["weights"]["FUTURE"] -= 0.02
+            msg = f"❌ Prediction Failed. Tuning Logic."
         
-        # Accuracy Update
         total = memory["wins"] + memory["losses"]
         memory["accuracy"] = round((memory["wins"] / total) * 100, 2) if total > 0 else 0
         
@@ -158,14 +91,14 @@ def minute_learning_loop(current_price, memory):
             memory["lessons"].append(f"[{now.strftime('%H:%M')}] {msg}")
             if len(memory["lessons"]) > 20: memory["lessons"].pop(0)
             
-            # Reset Prediction Check
+            # Reset
             memory["last_prediction"] = {"price": 0, "time": None, "type": None}
             save_memory(memory)
             
     return memory
 
 # ==========================================
-# 3. MATH CORE (PHYSICS, CHAOS, MONTE CARLO, KALMAN)
+# 3. MATH CORE (PHYSICS, CHAOS, MATH)
 # ==========================================
 class KalmanFilter:
     def __init__(self):
@@ -193,39 +126,32 @@ def calculate_entropy(data):
 
 def run_monte_carlo(price, volatility, sims=500):
     wins = 0
+    if volatility <= 0: volatility = 0.01
     for _ in range(sims):
         sim_price = price * math.exp((0 - 0.5 * volatility**2) + volatility * np.random.normal())
         if sim_price > price: wins += 1
     return (wins / sims) * 100
 
-# === NEW: FUTURE PREDICTOR (LINEAR REGRESSION) ===
 def predict_next_10_min(history):
-    """அடுத்த 10 நிமிட விலையை கணிக்கும் கணித முறை"""
     if len(history) < 20: return history[-1]
-    
-    # எளிய Trend Projection (Numpy Polyfit)
-    y = np.array(history[-20:]) # கடைசி 20 புள்ளிகள்
+    y = np.array(history[-20:])
     x = np.arange(len(y))
-    
-    # கோடு போடுதல் (Slope & Intercept)
     z = np.polyfit(x, y, 1) 
     p = np.poly1d(z)
-    
-    # அடுத்த 10 ஸ்டெப் கணிப்பு
     future_index = len(y) + 10 
-    future_price = p(future_index)
-    
-    return future_price
+    return p(future_index)
 
 # ==========================================
-# 4. COMMUNICATION
+# 4. COMMUNICATION (Telegram & Voice)
 # ==========================================
 def send_telegram(msg):
     try:
         if "TELEGRAM_BOT_TOKEN" in st.secrets:
             token = st.secrets["TELEGRAM_BOT_TOKEN"]
             chat_id = st.secrets["TELEGRAM_CHAT_ID"]
-            requests.get(f"https://api.telegram.org/bot{token}/sendMessage", params={"chat_id": chat_id, "text": msg})
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            params = {"chat_id": chat_id, "text": msg}
+            requests.get(url, params=params)
     except: pass
 
 def play_voice(text):
@@ -239,7 +165,7 @@ def play_voice(text):
     except: pass
 
 # ==========================================
-# 5. THE SUPREME COUNCIL (UPDATED WITH FUTURE SIGHT)
+# 5. THE SUPREME COUNCIL
 # ==========================================
 def convene_council(price, history, kf_price, weights):
     votes = []
@@ -256,36 +182,31 @@ def convene_council(price, history, kf_price, weights):
     # 2. Chaos Agent
     entropy = calculate_entropy(history[-20:])
     if entropy > 1.8:
-        score -= 5 # TRAP
+        score -= 5
         votes.append(f"Chaos: ⚠️ TRAP (Entropy {entropy:.2f})")
     else:
         votes.append("Chaos: SAFE")
 
     # 3. Math Agent
-    volatility = np.std(history[-10:]) / np.mean(history[-10:])
+    volatility = np.std(history[-10:]) / np.mean(history[-10:]) if len(history) > 10 else 0.01
     mc_win = run_monte_carlo(price, volatility)
     m_vote = 1 if (mc_win > 60 and price > kf_price) else (-1 if (mc_win < 40 and price < kf_price) else 0)
     score += m_vote * weights.get("MATH", 1.2)
     votes.append(f"Math (Win% {mc_win:.0f}): {'BUY' if m_vote==1 else 'SELL'}")
 
-    # 4. NEW: Future Agent (10-Min Prediction)
+    # 4. Future Agent
     future_price = predict_next_10_min(history)
     f_vote = 0
-    if future_price > price + 5: f_vote = 1 # 10 நிமிஷத்துல 5 ரூபா ஏறும்
+    if future_price > price + 5: f_vote = 1
     elif future_price < price - 5: f_vote = -1
-    
-    # மைக்ரோ ஸ்கால்பிங் லாஜிக் (Micro Scalp)
-    f_weight = weights.get("FUTURE", 1.5)
-    score += f_vote * f_weight
+    score += f_vote * weights.get("FUTURE", 1.5)
     votes.append(f"Future (Target {future_price:.1f}): {'BUY' if f_vote==1 else 'SELL'}")
 
     return score, votes, vel, entropy, mc_win, future_price
 
 # ==========================================
-# 6. APP LOGIC & UI
+# 6. APP UI & LOGIC
 # ==========================================
-
-# Auth & Init
 if "auth" not in st.session_state: st.session_state.auth = False
 if "memory" not in st.session_state: st.session_state.memory = load_memory()
 if "kf" not in st.session_state: st.session_state.kf = KalmanFilter()
@@ -296,13 +217,12 @@ if not st.session_state.auth:
         if pwd == "boss": st.session_state.auth = True; st.rerun()
     st.stop()
 
-# Sidebar
 with st.sidebar:
     st.title("⚙️ CONTROLS")
-    auto_ref = st.toggle("🔄 MICRO-SCALPING MODE", value=True) # Default ON
+    auto_ref = st.toggle("🔄 MICRO-SCALPING MODE", value=True)
     voice_on = st.toggle("🔊 VOICE", value=True)
-    st.markdown("---")
-    st.metric("Self-Learning Accuracy", f"{st.session_state.memory.get('accuracy', 0)}%")
+    if st.button("Test Telegram"): send_telegram("CM-X Time Traveler Online!")
+    st.metric("AI Accuracy", f"{st.session_state.memory.get('accuracy', 0)}%")
 
 # Header
 c1, c2 = st.columns([3, 1])
@@ -312,14 +232,14 @@ with c1:
 with c2:
     st.markdown(f"**IST:** {get_indian_time().strftime('%H:%M:%S')}")
 
-# Data Simulation (Replace with Live Feed in Production)
+# Data Simulation (Replace with Live Feed later)
 if "history" not in st.session_state: st.session_state.history = [19500]*50
 raw_price = st.session_state.history[-1] + np.random.randint(-15, 20)
 kf_price = st.session_state.kf.update(raw_price)
 st.session_state.history.append(raw_price)
 if len(st.session_state.history) > 50: st.session_state.history.pop(0)
 
-# 1. MINUTE LEARNING LOOP (BACKGROUND PROCESS)
+# 1. MINUTE LEARNING LOOP
 st.session_state.memory = minute_learning_loop(raw_price, st.session_state.memory)
 
 # 2. COUNCIL MEETING
@@ -337,11 +257,11 @@ final_decision = "WAIT"
 if score > 3.0: final_decision = "🚀 MICRO-BUY"
 elif score < -3.0: final_decision = "🩸 MICRO-SELL"
 
-# Update Memory with Prediction (For Self-Learning Loop)
+# Memory Update
 if final_decision != "WAIT" and st.session_state.memory["last_prediction"]["price"] == 0:
     st.session_state.memory["last_prediction"] = {
         "price": raw_price,
-        "time": get_indian_time().strftime('%Y-%m-%d %H:%M:%S'),
+        "time": get_indian_time().replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S'),
         "type": "BUY" if "BUY" in final_decision else "SELL"
     }
     save_memory(st.session_state.memory)
@@ -349,49 +269,36 @@ if final_decision != "WAIT" and st.session_state.memory["last_prediction"]["pric
 # Charts
 c_chart, c_log = st.columns([2, 1])
 with c_chart:
-    st.subheader("📈 Time Traveler Chart")
-    # Show Past History + Future Point
-    chart_data = pd.DataFrame({"History": st.session_state.history[-30:]})
-    st.line_chart(chart_data)
-    # Note: Streamlit line chart simple plotting. For advanced future line, we use metrics.
-
+    st.line_chart(st.session_state.history[-30:])
 with c_log:
-    st.subheader("🧠 Brain Log")
     for v in votes: st.code(v)
-    
-    st.markdown("---")
-    if len(st.session_state.memory["lessons"]) > 0:
-        st.caption("Recent Self-Improvements:")
-        st.text(st.session_state.memory["lessons"][-1])
+    st.markdown(f"### VERDICT: {final_decision}")
 
-# GEMINI BRAIN
+# GEMINI BRAIN INTEGRATION
 if "GEMINI_API_KEY" in st.secrets and final_decision != "WAIT":
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
-    if st.button("🤖 VALIDATE PREDICTION"):
-        with st.spinner("Calculating Spacetime Probability..."):
-            prompt = f"""
-            Act as CM-X Time Traveler.
-            Current Price: {raw_price}.
-            Predicted Price (10min): {future_target}.
-            Physics Velocity: {vel}.
-            Entropy: {entropy}.
-            
-            System says: {final_decision}.
-            
-            Verify this micro-scalp trade. Is the prediction logical based on Momentum (Velocity)?
-            Answer in Tanglish.
-            """
-            try:
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        if st.button("🤖 VALIDATE PREDICTION"):
+            with st.spinner("Calculating Spacetime Probability..."):
+                prompt = f"""
+                Act as CM-X Time Traveler.
+                Data: Price={raw_price}, Vel={vel}, Entropy={entropy}.
+                Decision: {final_decision}.
+                Explain logic in Tanglish.
+                """
                 res = model.generate_content(prompt)
                 st.success(f"🦁 **CM-X:** {res.text}")
+                
+                # Notifications
                 if voice_on: play_voice(f"Prediction Verified. {res.text[:50]}")
                 send_telegram(f"⏳ FUTURE ALERT: {final_decision}\nTarget: {future_target}\nPrice: {raw_price}")
-            except: pass
+    except Exception as e:
+        st.error(f"AI Error: {e}")
 
-# AUTO REFRESH (MICRO-SECOND SPEED SIMULATION)
+# AUTO REFRESH
 if auto_ref:
-    time.sleep(1) # For real micro-scalping, reduce this to 0.5 or 0.1 with proper API
+    time.sleep(1)
     st.rerun()
     
