@@ -1,8 +1,9 @@
+%%writefile_requirments
 streamlit
 pandas
 numpy
 requests
-google-generativeai
+import_google.generativeai_as_genai
 python-dotenv
 plotly
 pytz
