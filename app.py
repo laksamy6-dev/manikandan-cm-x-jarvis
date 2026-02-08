@@ -1,22 +1,11 @@
-# -*- coding: utf-8 -*-
-# ==============================================================================
-#   PROJECT: CM-X JARVIS: ETERNAL EDITION (STREAMLIT WEB APP)
-#   OWNER: Boss Manikandan
-#   AI CORE: JARVIS (Shadow Emperor)
-#   PURPOSE: Permanent Cloud Deployment with Security Login
-# ==============================================================================
-
-!pip install streamlit
 import streamlit as st
 import pandas as pd
 import numpy as np
 import time
-import requests
-import json
 import google.generativeai as genai
-import hmac
+import datetime
 
-# --- 1. CONFIGURATION & PAGE SETUP ---
+# --- 1. PAGE CONFIGURATION (பக்கம் அமைப்பு) ---
 st.set_page_config(
     page_title="CM-X JARVIS: WAR ROOM",
     page_icon="🦁",
@@ -24,165 +13,190 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. SECURITY LOCK (பாதுகாப்பு பூட்டு) ---
-def check_password():
-    """Returns `True` if the user had the correct password."""
-
-    def password_entered():
-        # பாஸ்வேர்ட்: "boss" (இதை நீங்க மாத்திக்கலாம்)
-        if st.session_state["password"] == "boss":
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
-    if "password_correct" not in st.session_state:
-        # First run, show input for password.
-        st.text_input(
-            "🔑 ENTER ACCESS CODE:", type="password", on_change=password_entered, key="password"
-        )
-        return False
-    elif not st.session_state["password_correct"]:
-        # Password incorrect, show input again.
-        st.text_input(
-            "🔑 ENTER ACCESS CODE:", type="password", on_change=password_entered, key="password"
-        )
-        st.error("⛔ ACCESS DENIED: தவறான கடவுச்சொல்!")
-        return False
-    else:
-        # Password correct.
-        return True
-
-if not check_password():
-    st.stop()  # Stop here if not logged in
-
-# --- 3. UI THEME (HACKER STYLE) ---
+# --- 2. CUSTOM CSS (சைபர் பங்க் தீம்) ---
 st.markdown("""
     <style>
-    .main { background-color: #000000; color: #00f3ff; font-family: 'Courier New', monospace; }
-    .stApp { background-color: #000000; }
-    h1, h2, h3 { color: #ffffff; text-shadow: 0 0 10px #00f3ff; font-weight: 900; }
-    .metric-card { background: rgba(20, 20, 30, 0.9); border: 1px solid #00f3ff; padding: 20px; border-radius: 10px; box-shadow: 0 0 15px rgba(0, 243, 255, 0.2); text-align: center; }
-    .stButton>button { background: linear-gradient(45deg, #f59e0b, #d97706); color: black; font-weight: bold; border: none; width: 100%; padding: 15px; border-radius: 5px; }
-    .stButton>button:hover { box-shadow: 0 0 20px #f59e0b; color: white; }
-    .fire-text { background: linear-gradient(to top, #ff0000, #ff8800, #ffff00); -webkit-background-clip: text; color: transparent; font-weight: 900; animation: flicker 0.1s infinite; }
-    @keyframes flicker { 0% { opacity: 1; } 50% { opacity: 0.8; } } 
+    /* Main Background */
+    .stApp {
+        background-color: #050505;
+        background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000000 100%);
+        color: #00f3ff;
+    }
+    
+    /* Headings */
+    h1, h2, h3 {
+        font-family: 'Courier New', monospace;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: #ffffff;
+        text-shadow: 0 0 10px #00f3ff;
+    }
+    
+    /* Metric Cards */
+    div[data-testid="stMetric"] {
+        background-color: rgba(20, 20, 30, 0.8);
+        border: 1px solid #333;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+        transition: transform 0.3s ease;
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: scale(1.05);
+        border-color: #00f3ff;
+    }
+    
+    /* Buttons */
+    .stButton>button {
+        background: linear-gradient(90deg, #00c6ff, #0072ff);
+        color: white;
+        font-weight: bold;
+        border: none;
+        border-radius: 5px;
+        height: 50px;
+        width: 100%;
+    }
+    .stButton>button:hover {
+        box-shadow: 0 0 20px #0072ff;
+    }
+
+    /* Input Fields */
+    .stTextInput>div>div>input {
+        background-color: #111;
+        color: #00f3ff;
+        border: 1px solid #333;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. SECRETS LOADING (ரகசிய சாவி) ---
-# Streamlit Cloud-ல் Secrets-ஐ பாதுகாப்பாக வைக்கலாம்.
-# இப்போதைக்கு இன்புட் பாக்ஸ் வைக்கிறேன், அப்புறம் Cloud Secrets-க்கு மாறலாம்.
+# --- 3. SECURITY SYSTEM (பாதுகாப்பு) ---
+def check_login():
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
 
+    if not st.session_state.authenticated:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown("## 🔐 IDENTITY VERIFICATION")
+            password = st.text_input("ENTER ACCESS CODE:", type="password")
+            if st.button("UNLOCK SYSTEM"):
+                if password == "boss":  # Password
+                    st.session_state.authenticated = True
+                    st.rerun()
+                else:
+                    st.error("⛔ ACCESS DENIED: Intruder Alert!")
+        return False
+    return True
+
+if not check_login():
+    st.stop()
+
+# --- 4. SIDEBAR CONFIG (கண்ட்ரோல் ரூம்) ---
 with st.sidebar:
-    st.header("🔐 SECURITY VAULT")
-    upstox_key = st.text_input("Upstox Key", type="password")
-    gemini_key = st.text_input("Gemini Key", type="password")
-    telegram_token = st.text_input("Telegram Token", type="password")
-    chat_id = st.text_input("Chat ID", value="8580047711")
+    st.image("https://cdn-icons-png.flaticon.com/512/4712/4712035.png", width=100)
+    st.markdown("### ⚙️ SYSTEM CONFIG")
+    
+    # API Keys Management
+    gemini_key = st.text_input("Gemini API Key", type="password", help="Enter Google AI Key")
+    
+    st.markdown("---")
+    st.markdown("### 📡 DATA STREAM")
+    auto_refresh = st.checkbox("🔄 AUTO-REFRESH MODE", value=False)
+    refresh_rate = st.slider("Rate (Seconds)", 1, 10, 2)
+    
+    if st.button("🚪 LOGOUT"):
+        st.session_state.authenticated = False
+        st.rerun()
 
-    if st.button("💾 SAVE KEYS"):
-        st.session_state['keys_saved'] = True
-        st.success("KEYS LOCKED!")
-
-# --- 5. HEADER SECTION ---
-col_logo, col_title, col_status = st.columns([1, 4, 1])
-
-with col_logo:
-    st.markdown("## 🦁")
-
-with col_title:
-    st.markdown(f"<h1>CM-X <span style='color:#00f3ff'>JARVIS</span></h1>", unsafe_allow_html=True)
-    st.markdown(f"<h3 class='fire-text'>CREATOR: BOSS MANIKANDAN</h3>", unsafe_allow_html=True)
-
-with col_status:
-    st.markdown("### 🟢 LIVE")
-
-# --- 6. DASHBOARD METRICS ---
-col1, col2, col3 = st.columns(3)
-
-# Simulated Live Data (Upstox API Connection will go here)
-price = 19500 + np.random.randint(-10, 15)
-vwap = 19500 + np.random.randint(-5, 5)
-rsi = 50 + np.random.randint(-5, 5)
-
-with col1:
-    st.markdown(f"""
-        <div class="metric-card">
-            <h4 style="color:#ffffff">NIFTY 50</h4>
-            <h1 style="color:#00f3ff">{price}</h1>
-        </div>
-    """, unsafe_allow_html=True)
-
-with col2:
-    st.markdown(f"""
-        <div class="metric-card">
-            <h4 style="color:#ffffff">VWAP</h4>
-            <h1 style="color:#f59e0b">{vwap}</h1>
-        </div>
-    """, unsafe_allow_html=True)
-
-with col3:
-    st.markdown(f"""
-        <div class="metric-card">
-            <h4 style="color:#ffffff">RSI</h4>
-            <h1 style="color:#d946ef">{rsi}</h1>
-        </div>
-    """, unsafe_allow_html=True)
-
-# --- 7. JARVIS BRAIN & CHART ---
-st.markdown("---")
-c1, c2 = st.columns([2, 1])
-
+# --- 5. MAIN DASHBOARD ---
+# Header
+c1, c2 = st.columns([4, 1])
 with c1:
-    st.subheader("📈 NEURAL SCANNER")
-    # Fake Chart for Demo
-    chart_data = pd.DataFrame(
-        np.random.randn(20, 2) + [price, vwap],
-        columns=['Price', 'VWAP']
-    )
-    st.line_chart(chart_data)
-
+    st.title("🦁 CM-X JARVIS: WAR ROOM")
+    st.caption(f"OPERATOR: BOSS MANIKANDAN | {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 with c2:
-    st.subheader("🤖 JARVIS INTELLIGENCE")
+    st.metric(label="SYSTEM STATUS", value="ONLINE", delta="STABLE")
 
-    # AI Analysis Logic
-    decision = "WAIT"
-    reason = "Scanning..."
+st.markdown("---")
 
-    if price > vwap + 5:
-        decision = "BUY CE 🚀"
-        reason = "Momentum Breakout!"
-    elif price < vwap - 5:
-        decision = "BUY PE 🩸"
-        reason = "Market Crash!"
+# --- 6. LIVE MARKET DATA (SIMULATION) ---
+# நிஜ மார்க்கெட் டேட்டா வரும்போது இங்கே Upstox Logic போடலாம்.
+current_price = 24500 + np.random.randint(-50, 50)
+vwap_val = current_price + np.random.randint(-20, 20)
+rsi_val = 50 + np.random.randint(-10, 10)
 
-    st.info(f"**DECISION:** {decision}")
-    st.caption(f"REASON: {reason}")
+# Metrics Row
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("NIFTY 50", f"₹{current_price}", f"{np.random.randint(-10, 10)} pts")
+m2.metric("VWAP LEVEL", f"₹{vwap_val}", delta_color="off")
+m3.metric("RSI INDICATOR", f"{rsi_val}", "NEUTRAL" if 40 < rsi_val < 60 else "ALERT")
+m4.metric("VOLATILITY", "HIGH", "CRITICAL", delta_color="inverse")
 
-    # Gemini Chat
-    user_query = st.text_input("Ask Jarvis:", placeholder="e.g., Analyze Trend")
-    if user_query and gemini_key:
-        try:
-            genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(f"Act as JARVIS for Boss Manikandan. Question: {user_query}")
-            st.success(f"🦁 **JARVIS:** {response.text}")
-        except Exception as e:
-            st.error("AI Error")
+# --- 7. DECISION ENGINE (மூளை) ---
+st.subheader("🧠 JARVIS INTELLIGENCE CORE")
 
-# --- 8. APPROVAL SYSTEM ---
-if decision != "WAIT":
-    st.markdown("### ⚠️ TRADE DETECTED!")
-    ac1, ac2 = st.columns(2)
-    with ac1:
-        if st.button(f"✅ APPROVE {decision}"):
-            st.toast(f"Order Executed: {decision}", icon="🚀")
-            # Upstox Order Code Here
-    with ac2:
-        if st.button("❌ REJECT"):
-            st.toast("Trade Cancelled", icon="🛑")
+col_chart, col_ai = st.columns([2, 1])
 
-# --- 9. AUTO-REFRESH ---
-time.sleep(1)
-st.rerun()
+with col_chart:
+    # Live Chart Simulation
+    chart_data = pd.DataFrame({
+        'Price': np.random.randn(50).cumsum() + current_price,
+        'VWAP': np.random.randn(50).cumsum() + vwap_val
+    })
+    st.line_chart(chart_data, color=["#00f3ff", "#f59e0b"])
+
+with col_ai:
+    st.markdown("#### 🛡️ STRATEGY SIGNAL")
+    
+    # Logic
+    signal = "WAIT & WATCH"
+    color = "gray"
+    
+    if current_price > vwap_val + 20 and rsi_val > 55:
+        signal = "🚀 BUY CALL (CE)"
+        color = "green"
+    elif current_price < vwap_val - 20 and rsi_val < 45:
+        signal = "🩸 BUY PUT (PE)"
+        color = "red"
+        
+    st.markdown(f"""
+        <div style="background-color:{color}; padding: 20px; border-radius: 10px; text-align: center;">
+            <h2 style="margin:0; color:white;">{signal}</h2>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Gemini AI Chat
+    user_query = st.text_input("🤖 COMMAND JARVIS:", placeholder="Type your query...")
+    
+    if user_query:
+        if not gemini_key:
+            st.warning("⚠️ Please enter Gemini API Key in Sidebar")
+        else:
+            try:
+                with st.spinner("Analyzing..."):
+                    genai.configure(api_key=gemini_key)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    response = model.generate_content(f"You are Jarvis, an AI assistant for Stock Trader Boss Manikandan. Keep answers short and technical. Query: {user_query}")
+                    st.success(f"🦁 **JARVIS:** {response.text}")
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+# --- 8. TRADE EXECUTION ---
+with st.expander("⚡ INSTANT EXECUTION TERMINAL", expanded=True):
+    ec1, ec2, ec3 = st.columns(3)
+    with ec1:
+        qty = st.number_input("QUANTITY (Lots)", min_value=1, value=1)
+    with ec2:
+        if st.button("✅ EXECUTE TRADE"):
+            st.toast(f"Order Placed for {qty} Lots! [SIMULATION]", icon="🦅")
+    with ec3:
+        if st.button("❌ EMERGENCY EXIT"):
+            st.toast("ALL POSITIONS CLOSED!", icon="🔥")
+
+# --- 9. AUTO REFRESH LOGIC ---
+if auto_refresh:
+    time.sleep(refresh_rate)
+    st.rerun()
+            
