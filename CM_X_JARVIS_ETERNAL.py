@@ -1,3 +1,4 @@
+%%writefile app.py
 # -*- coding: utf-8 -*-
 # ==============================================================================
 #   PROJECT: CM-X JARVIS: ETERNAL EDITION (STREAMLIT WEB APP)
@@ -186,3 +187,4 @@ if decision != "WAIT":
 # --- 9. AUTO-REFRESH ---
 time.sleep(1)
 st.rerun()
+            
