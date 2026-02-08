@@ -4,3 +4,4 @@ numpy
 google-generativeai>=0.7.0
 plotly
 gTTS
+requests
