@@ -2,7 +2,7 @@ streamlit
 pandas
 numpy
 requests
-import_google.generativeai_as_genai
+google.generativeai_as_genai
 python-dotenv
 plotly
 pytz
