@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CM-X JARVIS: SHADOW EMPEROR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* --- FONTS --- */
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&display=swap');
+
+        /* --- THEME: SHADOW EMPEROR (Dark Neural) --- */
+        body {
+            background-color: #050505; /* Deep Black */
+            color: #00f3ff; /* Cyber Cyan */
+            font-family: 'Rajdhani', sans-serif;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+
+        /* --- FIRE TEXT EFFECT (BOSS NAME) --- */
+        .fire-text {
+            background: linear-gradient(to top, #ff0000, #ff8800, #ffff00);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            text-shadow: 0 0 10px rgba(255, 69, 0, 0.6);
+            letter-spacing: 2px;
+            animation: flicker 0.1s infinite alternate;
+        }
+        @keyframes flicker {
+            0% { text-shadow: 0 0 10px rgba(255, 69, 0, 0.6); opacity: 1; }
+            100% { text-shadow: 0 0 20px rgba(255, 140, 0, 0.8), 0 0 5px rgba(255, 255, 0, 0.5); opacity: 0.9; }
+        }
+
+        /* --- NEURAL GLASS PANELS --- */
+        .glass-panel {
+            background: rgba(10, 20, 30, 0.85);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Scanline Overlay */
+        .glass-panel::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* --- VIDEO CONTAINER (With Maximize) --- */
+        .video-wrapper {
+            position: relative;
+            border: 2px solid #f59e0b; /* Amber Alert Border */
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.15);
+            background: black;
+            transition: all 0.3s ease;
+        }
+        
+        .video-fullscreen {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; border-radius: 0; border: none;
+        }
+
+        .maximize-btn {
+            position: absolute; top: 10px; right: 10px;
+            background: rgba(0, 0, 0, 0.8); color: #00f3ff;
+            border: 1px solid #00f3ff; padding: 6px 10px;
+            border-radius: 6px; font-family: 'Orbitron'; font-size: 10px;
+            cursor: pointer; z-index: 20; display: flex; align-items: center; gap: 5px;
+            transition: all 0.2s;
+        }
+        .maximize-btn:hover { background: #00f3ff; color: black; box-shadow: 0 0 10px #00f3ff; }
+
+        /* --- JARVIS BUTTONS --- */
+        .jarvis-btn {
+            background: linear-gradient(45deg, rgba(0, 243, 255, 0.1), rgba(0, 243, 255, 0.05));
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+            position: relative; overflow: hidden;
+        }
+        .jarvis-btn:hover { box-shadow: 0 0 20px rgba(0, 243, 255, 0.6); transform: translateY(-1px); }
+        .jarvis-btn:active { background: #00f3ff; color: #000; box-shadow: 0 0 30px #00f3ff; transform: translateY(1px); }
+
+        /* --- JARVIS CORE ANIMATION --- */
+        .jarvis-core {
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #00f3ff, #000);
+            box-shadow: 0 0 20px #00f3ff;
+            animation: core-pulse 3s infinite;
+            display: flex; justify-content: center; align-items: center;
+            border: 2px solid rgba(0, 243, 255, 0.5);
+            cursor: pointer;
+        }
+        @keyframes core-pulse {
+            0% { box-shadow: 0 0 15px #00f3ff; transform: scale(1); border-color: rgba(0,243,255,0.5); }
+            50% { box-shadow: 0 0 35px #00f3ff; transform: scale(1.05); border-color: rgba(0,243,255,1); }
+            100% { box-shadow: 0 0 15px #00f3ff; transform: scale(1); border-color: rgba(0,243,255,0.5); }
+        }
+
+        /* --- VOICE VISUALIZER --- */
+        .voice-wave { display: flex; align-items: center; height: 20px; gap: 3px; }
+        .wave-bar { width: 3px; background: #00f3ff; animation: wave 1s infinite ease-in-out; border-radius: 2px; }
+        .wave-bar:nth-child(1) { height: 8px; animation-delay: 0.1s; }
+        .wave-bar:nth-child(2) { height: 14px; animation-delay: 0.2s; }
+        .wave-bar:nth-child(3) { height: 18px; animation-delay: 0.3s; }
+        .wave-bar:nth-child(4) { height: 14px; animation-delay: 0.4s; }
+        .wave-bar:nth-child(5) { height: 8px; animation-delay: 0.5s; }
+        @keyframes wave { 0%, 100% { transform: scaleY(1); opacity: 0.4; } 50% { transform: scaleY(1.8); opacity: 1; } }
+
+        /* --- SCROLLBAR --- */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #0ea5e9; border-radius: 3px; }
+        
+        /* BACKGROUND GRID */
+        .neural-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none; z-index: -1;
+        }
+    </style>
+</head>
+<body class="p-3 md:p-6 flex flex-col gap-5 min-h-screen">
+    <div class="neural-bg"></div>
+
+    <!-- HEADER: THE IDENTITY -->
+    <header class="glass-panel p-4 flex flex-col md:flex-row justify-between items-center relative z-20">
+        <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
+            <div class="jarvis-core" onclick="activateJarvis()">
+                <i class="fas fa-fingerprint text-black text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold font-orbitron text-white tracking-wider">CM-X <span class="text-cyan-400 drop-shadow-[0_0_10px_#00f3ff]">JARVIS</span></h1>
+                <div class="flex items-center gap-2 mt-1">
+                    <i class="fas fa-crown text-yellow-400 animate-bounce"></i>
+                    <span class="fire-text text-xl">BOSS MANIKANDAN</span>
+                </div>
+            </div>
+            <!-- Mobile Menu Toggle (Visual Only) -->
+            <button class="md:hidden text-cyan-400 text-2xl"><i class="fas fa-bars"></i></button>
+        </div>
+
+        <!-- SYSTEM STATUS & API -->
+        <div class="flex flex-col items-end gap-2 w-full md:w-auto mt-4 md:mt-0">
+            <div class="flex items-center gap-2 w-full justify-end">
+                <input type="password" id="gemini-key" placeholder="🔑 LINK NEURAL API..." class="bg-black/60 border border-cyan-900 text-cyan-400 text-xs px-3 py-2 rounded-lg w-full md:w-64 focus:outline-none focus:border-cyan-400 transition-all font-mono">
+            </div>
+            <div class="flex items-center gap-3 bg-black/40 px-3 py-1 rounded-full border border-cyan-900/50">
+                <div class="voice-wave opacity-50" id="voice-viz">
+                    <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+                </div>
+                <span class="text-[10px] font-bold text-cyan-500 tracking-wider" id="voice-status">SYSTEM STANDBY</span>
+                <button onclick="toggleJarvis()" class="text-xs text-cyan-400 hover:text-white transition"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN BATTLEFIELD GRID -->
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-grow z-10">
+
+        <!-- LEFT FLANK: VIDEO & LIVE DATA -->
+        <section class="space-y-5 lg:col-span-2">
+            
+            <!-- 1. VIDEO SURVEILLANCE -->
+            <div class="video-wrapper h-64 md:h-80 w-full" id="video-container">
+                <button class="maximize-btn" onclick="toggleFullScreen()">
+                    <i class="fas fa-expand"></i> MAXIMIZE FEED
+                </button>
+                <!-- Placeholder for Trading View / Camera -->
+                <div class="w-full h-full flex flex-col items-center justify-center bg-black text-slate-600 relative">
+                    <div class="absolute inset-0 bg-[url('https://media.giphy.com/media/26tn33aiTi1jkl6H6/giphy.gif')] bg-cover opacity-10"></div>
+                    <i class="fas fa-satellite-dish text-4xl mb-3 animate-pulse text-emerald-500"></i>
+                    <p class="text-xs font-mono tracking-widest">ESTABLISHING UPLINK...</p>
+                    <p class="text-[9px] text-slate-500 mt-1">Connecting to Upstox Secure Stream</p>
+                </div>
+            </div>
+
+            <!-- 2. NEURAL SCANNER (Chart) -->
+            <div class="glass-panel p-4 h-64 relative">
+                <div class="flex justify-between items-center mb-2 px-1">
+                    <h3 class="text-xs text-cyan-400 font-bold font-orbitron"><i class="fas fa-wave-square mr-2"></i> QUANTUM CHART</h3>
+                    <div class="flex gap-4 text-[9px] font-mono">
+                        <span class="text-cyan-300">● PRICE</span>
+                        <span class="text-red-400">● VWAP</span>
+                        <span class="text-emerald-400">● AI TREND</span>
+                    </div>
+                </div>
+                <div class="relative h-full w-full">
+                    <canvas id="mainChart"></canvas>
+                    <!-- Scanning Laser -->
+                    <div class="absolute top-0 bottom-0 w-[1px] bg-cyan-400 shadow-[0_0_15px_#00f3ff] animate-[scan_3s_linear_infinite]" style="left: 50%;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT FLANK: INTELLIGENCE & CONTROL -->
+        <section class="space-y-5 flex flex-col">
+            
+            <!-- 1. MARKET VITALS -->
+            <div class="glass-panel p-4 grid grid-cols-2 gap-3">
+                <div class="text-center p-2 bg-black/40 rounded-lg border border-cyan-900/30">
+                    <div class="text-[9px] text-slate-400 uppercase tracking-widest">NIFTY 50</div>
+                    <div class="text-3xl font-mono font-bold text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" id="nifty-price">19,500</div>
+                </div>
+                <div class="text-center p-2 bg-black/40 rounded-lg border border-cyan-900/30">
+                    <div class="text-[9px] text-slate-400 uppercase tracking-widest">VELOCITY</div>
+                    <div class="text-3xl font-mono font-bold text-amber-400" id="val-velocity">0.00</div>
+                </div>
+            </div>
+
+            <!-- 2. AI COMMAND INTERFACE -->
+            <div class="glass-panel p-5 flex flex-col justify-between flex-grow">
+                <div>
+                    <h3 class="text-xs text-cyan-500 font-orbitron tracking-widest mb-3 flex items-center">
+                        <i class="fas fa-brain mr-2"></i> NEURAL INTERFACE
+                    </h3>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="user-query" placeholder="Ask Jarvis (e.g. 'Trend Analysis')" class="jarvis-input w-full px-4 py-3 rounded-lg text-sm bg-black/50 border-cyan-800 text-cyan-100 placeholder-cyan-900">
+                        <button onclick="askJarvis()" class="jarvis-btn px-5 py-3 rounded-lg">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Decision Core -->
+                <div class="mt-2 border-t border-cyan-900/50 pt-4">
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <span class="text-[9px] text-slate-500 block mb-1">STRATEGY</span>
+                            <div class="text-xl font-bold font-mono text-white animate-pulse" id="ai-decision">SCANNING</div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[9px] text-slate-500 block mb-1">CONFIDENCE</span>
+                            <div class="text-2xl font-black font-mono text-emerald-400 drop-shadow-[0_0_5px_#10b981]" id="ai-conf">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. TACTICAL LOGS -->
+            <div class="glass-panel p-3 h-40 overflow-hidden flex flex-col border-l-2 border-l-amber-500 bg-black/80">
+                <div class="text-[10px] text-amber-500 font-bold mb-2 flex items-center gap-2">
+                    <i class="fas fa-code-branch"></i> SYSTEM LOGS
+                </div>
+                <div id="logs" class="flex-grow overflow-y-auto font-mono text-[10px] space-y-1.5 text-slate-400 p-1">
+                    <div class="text-emerald-500">> [SYS] Neural Architecture Loaded.</div>
+                    <div class="text-cyan-400">> [AI] Greetings Boss Manikandan. Shadow Emperor Mode Active.</div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- CONTROL FOOTER -->
+    <div class="fixed bottom-4 right-4 z-50">
+        <button onclick="activateJarvis()" class="jarvis-btn px-6 py-3 rounded-full shadow-[0_0_20px_rgba(0,243,255,0.3)] bg-black text-xs font-bold border-2 border-cyan-400">
+            <i class="fas fa-rocket mr-2"></i> ENGAGE SYSTEMS
+        </button>
+    </div>
+
+    <!-- 🔥 APPROVAL POPUP (Hidden) 🔥 -->
+    <div id="approval-popup" class="approval-box" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,10,20,0.95); border:2px solid #f59e0b; padding:20px; border-radius:15px; z-index:100; text-align:center; box-shadow:0 0 50px rgba(245,158,11,0.5); backdrop-filter:blur(10px);">
+        <h3 class="text-xl font-orbitron text-amber-400 mb-2 flex justify-center items-center gap-2">
+            <i class="fas fa-shield-alt animate-pulse"></i> TRADE INTERCEPTED
+        </h3>
+        <p class="text-white text-2xl font-mono mb-1 font-bold" id="signal-type">BUY CE</p>
+        <p class="text-slate-400 text-xs mb-6 font-mono" id="signal-reason">Reason: Neuro-Quantum Breakout</p>
+        
+        <div class="flex justify-center gap-4">
+            <button onclick="rejectTrade()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg border border-red-400 transition-transform active:scale-95"><i class="fas fa-times mr-2"></i> ABORT</button>
+            <button onclick="approveTrade()" class="bg-emerald-600 hover:bg-emerald-500 text-black font-bold py-3 px-6 rounded-lg shadow-lg border border-emerald-400 transition-transform active:scale-95"><i class="fas fa-check mr-2"></i> EXECUTE</button>
+        </div>
+    </div>
+
+    <!-- SCRIPT LOGIC -->
+    <script>
+        // --- 1. JARVIS VOICE & SOUNDS ---
+        let isJarvisActive = false;
+        const synth = window.speechSynthesis;
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function speak(text) {
+            if (!isJarvisActive) return;
+            const u = new SpeechSynthesisUtterance(text);
+            const voices = synth.getVoices();
+            // Attempt to find a robotic/British male voice
+            u.voice = voices.find(v => v.name.includes("Google UK English Male") || v.name.includes("Microsoft David")) || voices[0];
+            u.rate = 1.0; u.pitch = 0.8; // Lower pitch for authority
+            synth.speak(u);
+        }
+
+        function playSound(type) {
+            if (!isJarvisActive) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            
+            if (type === 'touch') {
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'alert') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            }
+        }
+
+        function toggleJarvis() {
+            isJarvisActive = !isJarvisActive;
+            const status = document.getElementById('voice-status');
+            const viz = document.getElementById('voice-viz');
+            
+            if(isJarvisActive) {
+                status.innerText = "JARVIS ONLINE";
+                status.classList.add("text-emerald-400");
+                viz.style.opacity = "1";
+                speak("Access granted. Shadow Emperor systems online. Awaiting commands, Boss.");
+                log("Voice Module: ACTIVATED", "success");
+            } else {
+                status.innerText = "VOICE OFF";
+                status.classList.remove("text-emerald-400");
+                viz.style.opacity = "0.5";
+                synth.cancel();
+            }
+        }
+
+        // --- 2. VIDEO MAXIMIZE ---
+        function toggleFullScreen() {
+            const elem = document.getElementById("video-container");
+            elem.classList.toggle("video-fullscreen");
+            if(elem.classList.contains("video-fullscreen")) {
+                if (elem.requestFullscreen) elem.requestFullscreen().catch(e => console.log(e));
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        // --- 3. CHART SETUP ---
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(50).fill(''),
+                datasets: [
+                    { label: 'Price', data: Array(50).fill(19500), borderColor: '#00f3ff', borderWidth: 2, tension: 0.4, pointRadius: 0, fill: true, backgroundColor: 'rgba(0, 243, 255, 0.05)' },
+                    { label: 'VWAP', data: Array(50).fill(19500), borderColor: '#ef4444', borderWidth: 1, borderDash: [5,5], pointRadius: 0 }
+                ]
+            },
+            options: { 
+         
