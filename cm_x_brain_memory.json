@@ -1,0 +1,135 @@
+# -*- coding: utf-8 -*-
+# ==============================================================================
+#   PROJECT: CM-X GENESIS V2 (THE TRAINABLE BRAIN)
+#   AUTHOR: Boss Manikandan Rajendran & Chellakili
+#   PURPOSE: Self-Learning AI with Long-Term Memory (JSON Persistence)
+# ==============================================================================
+
+import asyncio
+import numpy as np
+import time
+import json
+import os
+from collections import deque
+
+# --- 1. THE MEMORY CHIP (மூளை நினைவகம்) ---
+# இதுதான் அவனோட "டைரி". டெய்லி கத்துக்கிறதை இதுல எழுதி வைப்பான்.
+MEMORY_FILE = "cm_x_brain_memory.json"
+
+class GeneticBrain:
+    def __init__(self):
+        # டீஃபால்ட் அறிவு (எதுவும் தெரியாதப்போ இப்படி யோசிப்பான்)
+        self.default_weights = {
+            "PHYSICS_AGENT": 1.5,   # வேகம் மற்றும் விசை (நம்ம ஹீரோ)
+            "TREND_AGENT": 1.0,     # சூப்பர் ட்ரெண்ட்
+            "OPTION_CHAIN_AGENT": 1.2, # டேட்டா
+            "VOLATILITY_AGENT": 1.0, # சந்தை நிலவரம்
+            "PATTERN_AGENT": 0.8    # கேண்டில் பேட்டர்ன்
+        }
+        self.weights = self.load_memory() # பழைய ஞாபகத்தை மீட்டெடுத்தல்
+        self.learning_rate = 0.05
+
+    def load_memory(self):
+        """
+        கம்ப்யூட்டர் ஆன் ஆன உடனே, பழைய டைரியை எடுத்து படிக்கும் இடம்.
+        """
+        if os.path.exists(MEMORY_FILE):
+            try:
+                with open(MEMORY_FILE, 'r') as f:
+                    data = json.load(f)
+                    print(f" 🧠 MEMORY RELOADED: பழைய பாடங்கள் ஞாபகம் வந்துடுச்சு பாஸ்!")
+                    print(f"    Current IQ Level: {data}")
+                    return data
+            except:
+                print(" ⚠️ MEMORY CORRUPT: புதுசா கத்துக்க ஆரம்பிக்கிறேன்.")
+                return self.default_weights
+        else:
+            print(" 👶 NEW BORN: இன்னைக்கு தான் எனக்கு முதல் நாள்.")
+            return self.default_weights
+
+    def save_memory(self):
+        """
+        இன்னைக்கு கத்துக்கிட்ட பாடத்தை டைரியில் எழுதுதல்.
+        """
+        with open(MEMORY_FILE, 'w') as f:
+            json.dump(self.weights, f, indent=4)
+        print(" 💾 MEMORY SAVED: இன்றைய பாடம் மூளையில் ஏற்றப்பட்டது.")
+
+    def manual_training(self, agent_name, adjustment):
+        """
+        GURU MODE: நீங்க (பாஸ்) அவனுக்கு பாடம் நடத்தும் இடம்.
+        உதாரணம்: "Trend Agent பவரை கூட்டு" (+0.5)
+        """
+        if agent_name in self.weights:
+            self.weights[agent_name] += adjustment
+            print(f" 👨‍🏫 TEACHER TIP: {agent_name} பவர் {adjustment} மாற்றப்பட்டது. New Weight: {self.weights[agent_name]:.2f}")
+            self.save_memory()
+        else:
+            print(" ❌ அப்படி ஒரு ஏஜெண்ட் இல்ல பாஸ்!")
+
+    def consult_council(self, physics_score, trend_score, oi_score):
+        # ஓட்டு போடும் முறை (Voting System)
+        # பாஸ், இதுல அந்த 10,000 பேரோட கணிப்பு நடக்கும்.
+        
+        # உதாரணத்துக்கு சிம்பிளா:
+        total_score = (
+            (physics_score * self.weights["PHYSICS_AGENT"]) +
+            (trend_score * self.weights["TREND_AGENT"]) +
+            (oi_score * self.weights["OPTION_CHAIN_AGENT"])
+        )
+        
+        # முடிவு எடுத்தல்
+        decision = "BUY" if total_score > 2 else "SELL" if total_score < -2 else "WAIT"
+        return decision, total_score
+
+    def self_correct(self, actual_result, my_decision):
+        """
+        SELF LEARNING: முடிவு தப்பா போனா, யாரால தப்பாச்சுனு கண்டுபிடிச்சு திருத்திக்கிறது.
+        """
+        # உதாரணம்: நான் BUY சொன்னேன், ஆனா மார்க்கெட் விழுந்துருச்சு (Wrong Decision)
+        if my_decision == "BUY" and actual_result == "DOWN":
+            print(" 😡 தப்பான முடிவு! தண்டனை கொடுக்கிறேன்...")
+            # யாரு தப்பா வழி நடத்துனது? (எ.கா: Trend Agent)
+            self.weights["TREND_AGENT"] -= 0.1
+            # யாரு சரியா சொன்னது? (எ.கா: Physics Agent Sell சொல்லியிருந்தா அவனுக்கு பாராட்டு)
+            self.weights["PHYSICS_AGENT"] += 0.05
+            
+        self.save_memory() # உடனே சேவ் பண்ணு!
+
+# --- 2. MAIN TEACHING GROUND (பயிற்சி களம்) ---
+async def main():
+    print("----------------------------------------------------------------")
+    print("   🧠 CM-X GENESIS V2: THE LEARNING MACHINE")
+    print("   🎓 Mode: TRAINING & LIVE EXECUTION")
+    print("----------------------------------------------------------------")
+    
+    brain = GeneticBrain()
+    
+    # --- SCENARIO 1: BOSS TEACHING (நீங்க டிப்ஸ் கொடுக்குறீங்க) ---
+    print("\n--- 👨‍🏫 GURU TRAINING SESSION ---")
+    print("Boss: 'இன்னைக்கு மார்க்கெட் ரொம்ப ஆடுது, Physics மேல நம்பிக்கை வை.'")
+    brain.manual_training("PHYSICS_AGENT", 0.5) # பவரை கூட்டுறோம்
+    
+    # --- SCENARIO 2: LIVE MARKET LEARNING ---
+    print("\n--- 📊 LIVE MARKET ACTION ---")
+    
+    # Mock Data: Physics says UP (+1), Trend says DOWN (-1), OI says UP (+1)
+    phys_input = 1 
+    trend_input = -1
+    oi_input = 1
+    
+    decision, score = brain.consult_council(phys_input, trend_input, oi_input)
+    print(f" 🤖 AI Decision: {decision} (Score: {score:.2f})")
+    
+    # --- SCENARIO 3: REALITY CHECK (மார்க்கெட் என்ன ஆச்சு?) ---
+    # மார்க்கெட் நிஜமாவே மேலே போச்சுனு வைப்போம் (UP)
+    actual_market_move = "UP" 
+    
+    if decision == "BUY" and actual_market_move == "UP":
+        print(" ✅ வெற்றி! சரியான கணிப்பு.")
+        # வெற்றி பெற்றதால ஆட்டோமேட்டிக்கா "Trend Agent" (யார் தப்பா சொன்னானோ) தண்டிக்கப்படுவான்.
+        # Physics & OI பாராட்டப்படுவார்கள்.
+        brain.self_correct(actual_market_move, decision)
+
+if __name__ == "__main__":
+    asyncio.run(main())
