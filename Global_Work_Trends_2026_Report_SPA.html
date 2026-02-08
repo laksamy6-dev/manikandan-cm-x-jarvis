@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The State of Work 2026: The Hybrid Equilibrium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chosen Palette: Warm Professional -->
+    <!-- Primary Background: Stone-50 (#fafaf9) -->
+    <!-- Secondary Background: White (#ffffff) -->
+    <!-- Primary Text: Stone-800 (#292524) -->
+    <!-- Accents: Indigo-600 (Action), Emerald-600 (Positive), Rose-500 (Alert) -->
+    
+    <!-- Application Structure Plan: 
+         1. **Hero/Executive Summary:** Immediate high-level impact metrics to ground the user.
+         2. **The "Work Model" Dashboard:** Interactive exploration of *where* people are working. Users need to understand the distribution before diving into feelings.
+         3. **Sentiment & Challenges Analysis:** A comparative view (Employee vs. Employer) using interactive toggles to show alignment and friction points.
+         4. **Productivity & Economics:** Quantitative trends over time. Includes a "Cost of Work" calculator interactivity to make the data personal.
+         5. **Strategic Framework:** A "cards" based interaction to explain the qualitative pillars of success.
+         Rationale: Logic flows from "What is happening?" -> "How does it feel?" -> "What does it cost/produce?" -> "How do we fix it?".
+    -->
+
+    <!-- Visualization & Content Choices:
+         1. **Work Distribution:** Goal: Inform. Method: Doughnut Chart (Chart.js). Interaction: Click segments to filter summary text.
+         2. **Challenge/Benefit Matrix:** Goal: Compare. Method: Horizontal Bar Chart. Interaction: Toggle dataset between 'Employee View' and 'Employer View'.
+         3. **Productivity Trends:** Goal: Change. Method: Line Chart. Interaction: Timeframe slider (simulated).
+         4. **Cost Calculator:** Goal: Personalize. Method: JS Input/Calculation. Interaction: Sliders update savings value immediately.
+         5. **Framework Cards:** Goal: Organize. Method: HTML/CSS Grid with JS Expand/Collapse. NO SVG.
+    -->
+
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. Charts via Chart.js Canvas. Icons via Unicode. -->
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fafaf9; /* stone-50 */
+            color: #292524; /* stone-800 */
+        }
+        
+        /* Chart Container Strict Styling */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%; /* Allow full width within grid cells, controlled by grid layout */
+            height: 300px;
+            max-height: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        .nav-active {
+            border-bottom: 2px solid #4f46e5; /* indigo-600 */
+            color: #4f46e5;
+            font-weight: 600;
+        }
+
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        /* Custom Scrollbar for clean look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d6d3d1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a29e; 
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-stone-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl mr-2">📊</span>
+                    <span class="font-bold text-xl tracking-tight text-stone-900">WorkState<span class="text-indigo-600">2026</span></span>
+                </div>
+                <div class="hidden sm:flex space-x-8 items-center" id="nav-links">
+                    <button onclick="navigateTo('executive-summary')" class="nav-item nav-active px-1 pt-1 text-sm font-medium transition-colors" data-target="executive-summary">Overview</button>
+                    <button onclick="navigateTo('work-models')" class="nav-item px-1 pt-1 text-sm font-medium text-stone-500 hover:text-stone-700 transition-colors" data-target="work-models">Work Models</button>
+                    <button onclick="navigateTo('sentiment')" class="nav-item px-1 pt-1 text-sm font-medium text-stone-500 hover:text-stone-700 transition-colors" data-target="sentiment">Sentiment</button>
+                    <button onclick="navigateTo('economics')" class="nav-item px-1 pt-1 text-sm font-medium text-stone-500 hover:text-stone-700 transition-colors" data-target="economics">Economics</button>
+                </div>
+                <!-- Mobile Menu Button -->
+                <div class="flex items-center sm:hidden">
+                    <button onclick="toggleMobileMenu()" class="text-stone-500 hover:text-stone-700 focus:outline-none">
+                        <span class="text-2xl">☰</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden sm:hidden bg-white border-b border-stone-200">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <button onclick="navigateTo('executive-summary')" class="block w-full text-left px-3 py-2 text-base font-medium text-indigo-600 bg-indigo-50 rounded-md">Overview</button>
+                <button onclick="navigateTo('work-models')" class="block w-full text-left px-3 py-2 text-base font-medium text-stone-600 hover:bg-stone-50 rounded-md">Work Models</button>
+                <button onclick="navigateTo('sentiment')" class="block w-full text-left px-3 py-2 text-base font-medium text-stone-600 hover:bg-stone-50 rounded-md">Sentiment</button>
+                <button onclick="navigateTo('economics')" class="block w-full text-left px-3 py-2 text-base font-medium text-stone-600 hover:bg-stone-50 rounded-md">Economics</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+        <!-- SECTION 1: Executive Summary / Hero -->
+        <section id="executive-summary" class="animate-fade-in space-y-8">
+            <div class="text-center max-w-3xl mx-auto mb-12">
+                <h1 class="text-4xl font-bold text-stone-900 tracking-tight sm:text-5xl mb-4">The Hybrid Equilibrium</h1>
+                <p class="text-lg text-stone-600 leading-relaxed">
+                    The 2026 Annual Report analyzes data from 12,000 global knowledge workers. The "Remote vs. Office" war is over. 
+                    The winner is <span class="font-semibold text-indigo-600">Intentional Hybrid</span>, but new friction points regarding coordination and culture have emerged.
+                </p>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white rounded-xl card-shadow p-6 border-l-4 border-indigo-500">
+                    <div class="text-sm font-medium text-stone-500 uppercase tracking-wider mb-1">Global Adoption</div>
+                    <div class="flex items-baseline">
+                        <span class="text-3xl font-bold text-stone-900">58%</span>
+                        <span class="ml-2 text-sm text-green-600 font-semibold">▲ 4%</span>
+                    </div>
+                    <p class="mt-2 text-sm text-stone-600">Companies officially adopting "Structured Hybrid" policies.</p>
+                </div>
+                <div class="bg-white rounded-xl card-shadow p-6 border-l-4 border-emerald-500">
+                    <div class="text-sm font-medium text-stone-500 uppercase tracking-wider mb-1">Productivity Index</div>
+                    <div class="flex items-baseline">
+                        <span class="text-3xl font-bold text-stone-900">112</span>
+                        <span class="ml-2 text-sm text-stone-500">(Baseline: 100)</span>
+                    </div>
+                    <p class="mt-2 text-sm text-stone-600">Output metric for teams with 2+ sync days per week.</p>
+                </div>
+                <div class="bg-white rounded-xl card-shadow p-6 border-l-4 border-rose-400">
+                    <div class="text-sm font-medium text-stone-500 uppercase tracking-wider mb-1">Risk Factor</div>
+                    <div class="flex items-baseline">
+                        <span class="text-3xl font-bold text-stone-900">42%</span>
+                        <span class="ml-2 text-sm text-rose-600 font-semibold">▲ 8%</span>
+                    </div>
+                    <p class="mt-2 text-sm text-stone-600">Employees reporting "Digital Isolation" as a primary concern.</p>
+                </div>
+            </div>
+            
+            <div class="bg-indigo-50 rounded-lg p-6 flex flex-col md:flex-row items-center justify-between mt-8">
+                <div class="md:w-3/4 pr-4">
+                    <h3 class="text-lg font-bold text-indigo-900">Key Insight: The Coordination Tax</h3>
+                    <p class="text-indigo-800 text-sm mt-1">While individual productivity has soared, "coordination overhead"—time spent scheduling and syncing—has increased by 15% year-over-year. The report identifies <span class="font-semibold">Async-First Communication</span> as the critical solver for 2026.</p>
+                </div>
+                <button onclick="navigateTo('work-models')" class="mt-4 md:mt-0 px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+                    Explore the Data →
+                </button>
+            </div>
+        </section>
+
+        <!-- SECTION 2: Work Models -->
+        <section id="work-models" class="hidden space-y-8 animate-fade-in">
+            <div class="border-b border-stone-200 pb-4">
+                <h2 class="text-2xl font-bold text-stone-900">Distribution of Work Models</h2>
+                <p class="mt-2 text-stone-600 max-w-4xl">
+                    This section breaks down the current working arrangements across the global dataset. 
+                    The data reveals a decisive shift away from binary options (All Remote vs. All Office) towards nuanced hybrid structures.
+                    <span class="italic text-stone-500">Interact with the chart to see specific definitions and prevalence.</span>
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <!-- Interactive Chart Area -->
+                <div class="bg-white p-6 rounded-xl card-shadow">
+                    <h3 class="text-lg font-semibold text-stone-800 mb-4">Global Workforce Distribution (2026)</h3>
+                    <div class="chart-container">
+                        <canvas id="workDistributionChart"></canvas>
+                    </div>
+                    <div class="mt-4 flex justify-center space-x-4 text-sm">
+                        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-indigo-500 mr-2"></span>Structured Hybrid</div>
+                        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-teal-400 mr-2"></span>Remote First</div>
+                        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-stone-400 mr-2"></span>Fully On-site</div>
+                        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-orange-300 mr-2"></span>Flexible/Choice</div>
+                    </div>
+                </div>
+
+                <!-- Dynamic Detail Panel -->
+                <div id="model-details" class="bg-stone-50 p-6 rounded-xl border border-stone-200 h-full flex flex-col justify-center">
+                    <div class="text-center p-8 text-stone-400" id="model-placeholder">
+                        <div class="text-4xl mb-2">👆</div>
+                        <p>Click on a chart segment to view deep-dive analysis.</p>
+                    </div>
+                    <div id="model-content" class="hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 id="detail-title" class="text-2xl font-bold text-stone-900">Title</h3>
+                            <span id="detail-percentage" class="bg-indigo-100 text-indigo-800 text-sm font-bold px-3 py-1 rounded-full">0%</span>
+                        </div>
+                        <p id="detail-desc" class="text-stone-700 mb-6 leading-relaxed">Description goes here.</p>
+                        
+                        <h4 class="font-semibold text-sm uppercase tracking-wide text-stone-500 mb-3">Key Characteristics</h4>
+                        <ul id="detail-list" class="space-y-2 text-stone-700">
+                            <!-- JS populates this -->
+                        </ul>
+
+                        <div class="mt-8 p-4 bg-white rounded border-l-4 border-indigo-500 shadow-sm">
+                            <p class="text-sm font-medium text-stone-900">Report Verdict:</p>
+                            <p id="detail-verdict" class="text-sm text-stone-600 mt-1 italic">Verdict goes here.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: Sentiment & Challenges -->
+        <section id="sentiment" class="hidden space-y-8 animate-fade-in">
+            <div class="border-b border-stone-200 pb-4">
+                <h2 class="text-2xl font-bold text-stone-900">The Human Sentiment Gap</h2>
+                <p class="mt-2 text-stone-600 max-w-4xl">
+                    While hybrid work is popular, significant gaps exist between Employee realities and Employer perceptions.
+                    This analysis highlights the disconnect in perceived challenges and benefits.
+                    <span class="italic text-stone-500">Use the toggle to switch perspectives.</span>
+                </p>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex justify-center mb-6">
+                <div class="bg-stone-100 p-1 rounded-lg inline-flex">
+                    <button id="btn-challenges" onclick="updateSentimentChart('challenges')" class="px-4 py-2 rounded-md text-sm font-medium bg-white text-stone-900 shadow-sm transition-all">Top Challenges</button>
+                    <button id="btn-benefits" onclick="updateSentimentChart('benefits')" class="px-4 py-2 rounded-md text-sm font-medium text-stone-500 hover:text-stone-900 transition-all">Top Benefits</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Main Comparison Chart -->
+                <div class="md:col-span-2 bg-white p-6 rounded-xl card-shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-stone-800" id="sentiment-chart-title">Top Challenges: Employee vs. Employer</h3>
+                        <div class="flex space-x-4 text-xs">
+                            <span class="flex items-center"><div class="w-3 h-3 bg-indigo-500 mr-1 rounded"></div> Employee</span>
+                            <span class="flex items-center"><div class="w-3 h-3 bg-stone-300 mr-1 rounded"></div> Employer Perception</span>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="sentimentChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Context Panel -->
+                <div class="bg-indigo-900 text-white p-6 rounded-xl flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold mb-4 text-indigo-100">Analysis Box</h3>
+                        <p class="text-indigo-200 text-sm mb-4 leading-relaxed">
+                            The widest gap exists in <span class="text-white font-semibold">Productivity Perception</span>. While employees cite "Focus Time" as a major benefit, 30% of employers still fear it as a risk.
+                        </p>
+                        <p class="text-indigo-200 text-sm mb-4 leading-relaxed">
+                            Conversely, employers underestimate the impact of <span class="text-white font-semibold">Isolation</span> on their teams by a margin of 15 points.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-6 border-t border-indigo-700">
+                        <div class="text-xs uppercase tracking-wider text-indigo-400 mb-1">Action Item</div>
+                        <p class="text-sm font-medium">Implement quarterly "Pulse Checks" focused specifically on social connection, not just output.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: Economics & Productivity -->
+        <section id="economics" class="hidden space-y-8 animate-fade-in">
+            <div class="border-b border-stone-200 pb-4">
+                <h2 class="text-2xl font-bold text-stone-900">The Economics of Flexibility</h2>
+                <p class="mt-2 text-stone-600 max-w-4xl">
+                    Quantifying the value of remote work goes beyond salary. It includes time reclaimed, carbon reduced, and overhead saved.
+                    This section visualizes the tangible impact.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <!-- Productivity Trend Line -->
+                <div class="bg-white p-6 rounded-xl card-shadow">
+                    <h3 class="text-lg font-semibold text-stone-800 mb-2">Productivity Trend (2020-2026)</h3>
+                    <p class="text-xs text-stone-500 mb-4">Indexed against 2019 baseline (100). Source: Global Output Metrics.</p>
+                    <div class="chart-container">
+                        <canvas id="productivityChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Interactive Calculator -->
+                <div class="bg-stone-50 border border-stone-200 p-6 rounded-xl">
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-stone-900 flex items-center">
+                            <span class="text-2xl mr-2">🧮</span> Commute Impact Calculator
+                        </h3>
+                        <p class="text-sm text-stone-600 mt-1">Estimate the annual resource recovery for a hybrid worker.</p>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Slider 1 -->
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="text-sm font-medium text-stone-700">Commute Time (One Way)</label>
+                                <span class="text-sm font-bold text-indigo-600" id="val-time">45 min</span>
+                            </div>
+                            <input type="range" min="10" max="120" value="45" class="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" id="input-time" oninput="calculateSavings()">
+                        </div>
+
+                        <!-- Slider 2 -->
+                        <div>
+                            <div class="flex ju
