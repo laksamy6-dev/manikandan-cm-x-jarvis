@@ -6,6 +6,7 @@
 #   PURPOSE: Permanent Cloud Deployment with Security Login
 # ==============================================================================
 
+!pip install streamlit
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -29,7 +30,7 @@ def check_password():
 
     def password_entered():
         # பாஸ்வேர்ட்: "boss" (இதை நீங்க மாத்திக்கலாம்)
-        if st.session_state["password"] == "boss": 
+        if st.session_state["password"] == "boss":
             st.session_state["password_correct"] = True
             del st.session_state["password"]
         else:
@@ -65,7 +66,7 @@ st.markdown("""
     .stButton>button { background: linear-gradient(45deg, #f59e0b, #d97706); color: black; font-weight: bold; border: none; width: 100%; padding: 15px; border-radius: 5px; }
     .stButton>button:hover { box-shadow: 0 0 20px #f59e0b; color: white; }
     .fire-text { background: linear-gradient(to top, #ff0000, #ff8800, #ffff00); -webkit-background-clip: text; color: transparent; font-weight: 900; animation: flicker 0.1s infinite; }
-    @keyframes flicker { 0% { opacity: 1; } 50% { opacity: 0.8; } }
+    @keyframes flicker { 0% { opacity: 1; } 50% { opacity: 0.8; } } 
     </style>
 """, unsafe_allow_html=True)
 
@@ -79,7 +80,7 @@ with st.sidebar:
     gemini_key = st.text_input("Gemini Key", type="password")
     telegram_token = st.text_input("Telegram Token", type="password")
     chat_id = st.text_input("Chat ID", value="8580047711")
-    
+
     if st.button("💾 SAVE KEYS"):
         st.session_state['keys_saved'] = True
         st.success("KEYS LOCKED!")
@@ -144,21 +145,21 @@ with c1:
 
 with c2:
     st.subheader("🤖 JARVIS INTELLIGENCE")
-    
+
     # AI Analysis Logic
     decision = "WAIT"
     reason = "Scanning..."
-    
+
     if price > vwap + 5:
         decision = "BUY CE 🚀"
         reason = "Momentum Breakout!"
     elif price < vwap - 5:
         decision = "BUY PE 🩸"
         reason = "Market Crash!"
-        
+
     st.info(f"**DECISION:** {decision}")
     st.caption(f"REASON: {reason}")
-    
+
     # Gemini Chat
     user_query = st.text_input("Ask Jarvis:", placeholder="e.g., Analyze Trend")
     if user_query and gemini_key:
