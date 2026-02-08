@@ -4,4 +4,9 @@ numpy
 requests
 google-generativeai
 plotly
+streamlit
+pandas
+numpy
+google-generativeai>=0.7.0
+gTTS
 
