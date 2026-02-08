@@ -1,4 +1,3 @@
-%%writefile CM_X_Dashboard.py
 # -*- coding: utf-8 -*-
 # ==============================================================================
 #   PROJECT: CM-X JARVIS: THE OMEGA EMPEROR (MASTER V8.0) - CONSOLIDATED DASHBOARD
