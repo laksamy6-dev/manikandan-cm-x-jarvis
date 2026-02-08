@@ -22,9 +22,69 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# 1. மேலே இதைச் சேர்க்கவும்
+from neural_brain import ChellakiliBrain 
+
+# ... (மற்ற கோடுகள்) ...
+
+# 2. AI பிரைனை Initialize செய்யவும் (SideBar-க்கு கீழே)
+brain_engine = ChellakiliBrain()
+
+# ... (உள்ளே எங்கே தேவையோ அங்கே பயன்படுத்தவும்) ...
+
+# உதாரணம் (Logic Section-ல்):
+if st.button("🤖 Analyze with Neural Link"):
+    with st.spinner("Chellakili is Thinking..."):
+        # இங்கே உங்க ரியல் டேட்டாவை அனுப்பவும்
+        ai_result = brain_engine.analyze_market(
+            price=current_price, 
+            rsi=rsi_val, 
+            trend="UP", 
+            fiis_data="Neutral", 
+            physics_velocity=velocity_val
+        )
+        
+        # ரிசல்ட் காட்டுதல்
+        st.success(f"DECISION: {ai_result['decision']}")
+        st.info(f"REASON: {ai_result['reason']}")
+        
+
 def get_indian_time():
     return datetime.now(pytz.timezone('Asia/Kolkata'))
+import requests  # (ஏற்கனவே இல்லன்னா இதை போடுங்க)
 
+# --- TELEGRAM FUNCTION (தகவல் தொடர்பு) ---
+def send_telegram_msg(message):
+    try:
+        # ரகசிய பெட்டியில் இருந்து கீ எடுக்குறோம்
+        bot_token = st.secrets["TELEGRAM_BOT_TOKEN"]
+        chat_id = st.secrets["TELEGRAM_CHAT_ID"]
+        
+        # மெசேஜ் அனுப்பும் URL
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        params = {"chat_id": chat_id, "text": message}
+        
+# அனுப்பு!
+    requests.get(url, params=params)
+        return True
+    except Exception as e:
+        st.error(f"Telegram Error: {e}")
+        return False
+    with st.sidebar:
+    st.header("📡 NETWORK TEST")
+    if st.button("Test Telegram Connection"):
+        send_telegram_msg("Vanakkam Boss! Jarvis Online. 🦁")
+        st.success("Message Sent!")
+# ... (ஏற்கனவே இருக்கும் உங்கள் Buy/Sell லாஜிக்) ...
+
+if decision == "BUY_CE":
+    msg = f"🚀 BUY SIGNAL DETECTED!\nPrice: {current_price}\nReason: {reason}"
+    send_telegram_msg(msg)  # <--- இங்கே தான் மெசேஜ் போகும்!
+    
+elif decision == "BUY_PE":
+    msg = f"🩸 SELL SIGNAL DETECTED!\nPrice: {current_price}\nReason: {reason}"
+    send_telegram_msg(msg)  # <--- இங்கே தான் மெசேஜ் போகும்!
+    
 # ==========================================
 # 2. MEMORY SYSTEM (SELF-IMPROVEMENT MINUTE-BY-MINUTE)
 # ==========================================
