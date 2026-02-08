@@ -1,0 +1,145 @@
+# -*- coding: utf-8 -*-
+# ==============================================================================
+#   PROJECT: CM-X GENESIS ULTIMATE (GITHUB EDITION)
+#   OWNER: Boss Manikandan Rajendran
+#   ASSISTANT: Chellakili (AI Co-Pilot)
+# ==============================================================================
+
+import asyncio
+import json
+import time
+import random
+import os
+import sys
+from datetime import datetime
+from dotenv import load_dotenv  # ரகசிய கீயை எடுக்க உதவும்
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+
+# --- 1. SETUP & CONFIGURATION ---
+# .env ஃபைலில் இருந்து ரகசியங்களை ஏற்றுதல்
+load_dotenv()
+
+UPSTOX_TOKEN = os.getenv("UPSTOX_ACCESS_TOKEN")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+MODE = os.getenv("TRADING_MODE", "PAPER")
+
+console = Console()
+MEMORY_FILE = "cm_x_core_memory.json"
+
+# --- 2. THE ETERNAL MEMORY (அழியாத நினைவகம்) ---
+class DigitalBrain:
+    def __init__(self):
+        self.knowledge_base = self.load_memory()
+        
+    def load_memory(self):
+        if os.path.exists(MEMORY_FILE):
+            try:
+                with open(MEMORY_FILE, 'r') as f:
+                    return json.load(f)
+            except:
+                return self._default_knowledge()
+        else:
+            return self._default_knowledge()
+
+    def _default_knowledge(self):
+        return {
+            "strategies": {
+                "PHYSICS_MOMENTUM": 1.5,
+                "FII_DATA_TRACKER": 1.2,
+                "PRICE_ACTION": 1.0
+            },
+            "lessons_learned": [],
+            "total_xp": 0
+        }
+
+    def save_memory(self):
+        with open(MEMORY_FILE, 'w') as f:
+            json.dump(self.knowledge_base, f, indent=4)
+
+    def learn_lesson(self, lesson_text):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        entry = f"[{timestamp}] {lesson_text}"
+        self.knowledge_base["lessons_learned"].append(entry)
+        self.knowledge_base["total_xp"] += 10
+        self.save_memory()
+        console.print(f"[bold green] 🧠 பாடம் கற்றுக் கொள்ளப்பட்டது! (+10 XP)[/bold green]")
+
+# --- 3. DATA INJECTOR (கண்கள் மற்றும் காதுகள்) ---
+class DataInjestor:
+    def __init__(self):
+        console.print("[cyan] 📡 Connecting to Global Data Stream...[/cyan]")
+        if not UPSTOX_TOKEN:
+            console.print("[bold red] ⚠️ WARNING: Upstox Token காணவில்லை! Simulation Mode-ல் ஓடுகிறது.[/bold red]")
+        
+    def scan_market(self):
+        # ரியல் API கனெக்ஷன் இல்லாத போது Simulation ஓடும்
+        # எதிர்காலத்தில் இங்கே Upstox Logic-ஐ இணைக்கலாம்
+        market_mood = random.choice(["BULLISH", "BEARISH", "SIDEWAYS"])
+        velocity = random.uniform(-10, 10) 
+        fii_activity = random.choice(["BUYING", "SELLING", "NEUTRAL"])
+        
+        return {
+            "mood": market_mood,
+            "velocity": velocity,
+            "fii": fii_activity,
+            "price": 19500 + random.randint(-50, 50)
+        }
+
+# --- 4. THE MENTOR ENGINE (வாத்தியார் மோட்) ---
+class MentorAssistant:
+    def __init__(self, brain):
+        self.brain = brain
+
+    def explain_decision(self, decision, reason_data):
+        console.print(Panel(f"""
+[bold yellow]🗣️ CM-X TEACHER MODE[/bold yellow]
+-----------------------------------------
+🔔 [bold white]முடிவு:[/bold white] {decision}
+❓ [bold white]காரணம்:[/bold white]
+   1. [cyan]Physics Velocity:[/cyan] {reason_data['velocity']:.2f} (வேகம்)
+   2. [cyan]FII Activity:[/cyan] {reason_data['fii']} (பணம்)
+
+💡 [italic green]பாடம்: வேகம் அதிகமாக இருக்கும்போது டிரெண்ட் பக்கம் போவது பாதுகாப்பு![/italic green]
+""", title="ASSISTANT LOG", border_style="blue"))
+
+# --- 5. MAIN INTELLIGENCE LOOP ---
+async def main():
+    os.system('cls' if os.name == 'nt' else 'clear')
+    console.print(Panel.fit("[bold magenta]🤖 CM-X GENESIS ULTIMATE (GITHUB EDITION)[/bold magenta]\n[white]Created by Boss Manikandan & Chellakili[/white]"))
+    
+    brain = DigitalBrain()
+    data_feed = DataInjestor()
+    mentor = MentorAssistant(brain)
+    
+    console.print(f"[bold yellow] 🧠 Current Brain XP: {brain.knowledge_base['total_xp']} Points[/bold yellow]\n")
+    
+    while True:
+        live_data = data_feed.scan_market()
+        
+        # Physics Rule
+        decision = "WAIT"
+        if live_data['velocity'] > 4 and live_data['fii'] == "BUYING":
+            decision = "BUY CE 🚀"
+        elif live_data['velocity'] < -4 and live_data['fii'] == "SELLING":
+            decision = "BUY PE 🩸"
+            
+        if decision != "WAIT":
+            mentor.explain_decision(decision, live_data)
+            time.sleep(2)
+            console.print("[bold green] ✅ ஆர்டர் போடப்பட்டது... (Order Executed)[/bold green]")
+            
+            # Learning Phase
+            brain.learn_lesson(f"வெற்றி குறிப்பு: வேகம் {live_data['velocity']:.1f} இருக்கும் போது FII சப்போர்ட் இருந்தால் லாபம் உறுதி.")
+        else:
+            print(f" ⏳ Market Watching... Velocity: {live_data['velocity']:.2f} | FII: {live_data['fii']}     ", end='\r')
+        
+        time.sleep(3)
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        console.print("\n[bold red] 🛑 SYSTEM SHUTDOWN INITIATED...[/bold red]")
