@@ -17,12 +17,13 @@ import plotly.graph_objects as go
 # 1. CONFIGURATION & HACKER UI
 # ==========================================
 st.set_page_config(
-    page_title="CM-X: LIVE MARKET GOD",
+    page_title="CM-X: LIVE OMEGA BLACK BOX",
     page_icon="🦁",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
+# Hacker Style CSS (Black Box Theme)
 st.markdown("""
     <style>
     .stApp { background-color: #000000; color: #00f3ff; font-family: 'Courier New', monospace; }
@@ -36,12 +37,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. UPSTOX LIVE CONNECTION (THE MISSING LINK)
+# 2. UPSTOX LIVE CONNECTION (THE ENGINE)
 # ==========================================
 def get_live_price():
     """
-    இதுதான் ரியல் மார்க்கெட் கனெக்ஷன்.
-    Upstox API-யை கூப்பிட்டு Nifty 50 விலையை எடுக்கும்.
+    Upstox API மூலம் நிஜ மார்க்கெட் விலையை எடுக்கும்.
     """
     try:
         if "UPSTOX_ACCESS_TOKEN" in st.secrets:
@@ -57,7 +57,6 @@ def get_live_price():
             data = response.json()
             
             if data['status'] == 'success':
-                # சரியான விலையை எடு
                 price = data['data']['NSE_INDEX:Nifty 50']['last_price']
                 return float(price), "🟢 LIVE"
             else:
@@ -68,7 +67,7 @@ def get_live_price():
     return None, "🔴 NO TOKEN"
 
 # ==========================================
-# 3. UTILITY FUNCTIONS
+# 3. CORE UTILITIES
 # ==========================================
 def get_time():
     return datetime.now(pytz.timezone('Asia/Kolkata'))
@@ -91,8 +90,10 @@ def play_voice(text):
     except: pass
 
 # ==========================================
-# 4. MATH & BRAIN CORE
+# 4. MATH & PHYSICS ENGINE (ALL FEATURES)
 # ==========================================
+
+# A. KALMAN FILTER
 class KalmanFilter:
     def __init__(self):
         self.last_estimate = 0
@@ -106,18 +107,21 @@ class KalmanFilter:
         self.last_estimate = current_estimate
         return current_estimate
 
+# B. PHYSICS ENGINE
 def calculate_physics(history):
     if len(history) < 3: return 0, 0
     v = history[-1] - history[-2]
     a = v - (history[-2] - history[-3])
     return v, a
 
+# C. ENTROPY (CHAOS)
 def calculate_entropy(data):
     if len(data) < 10: return 0
     hist, _ = np.histogram(data, bins=10, density=True)
     hist = hist[hist > 0]
     return -np.sum(hist * np.log(hist))
 
+# D. MONTE CARLO
 def run_monte_carlo(price, volatility, sims=1000):
     wins = 0
     vol = 0.01 if volatility == 0 else volatility
@@ -126,6 +130,7 @@ def run_monte_carlo(price, volatility, sims=1000):
         if sim_p > price: wins += 1
     return (wins / sims) * 100
 
+# E. FUTURE PREDICTION (Linear Regression)
 def predict_future(history):
     if len(history) < 20: return history[-1]
     y = np.array(history[-20:])
@@ -134,7 +139,7 @@ def predict_future(history):
     return np.poly1d(z)(len(y) + 10)
 
 # ==========================================
-# 5. MEMORY
+# 5. BLACK BOX MEMORY (SELF-CONSTRUCTION)
 # ==========================================
 MEMORY_FILE = "cm_x_blackbox.json"
 
@@ -153,20 +158,28 @@ def save_blackbox(mem):
 def self_construction_loop(current_price, memory):
     last = memory.get("last_pred", {})
     if not last.get("time"): return memory
+    
     try:
         last_time = datetime.strptime(last["time"], '%Y-%m-%d %H:%M:%S')
         now = get_time().replace(tzinfo=None)
+        
+        # 1 Minute Learning Check
         if (now - last_time).total_seconds() / 60 >= 1:
             old_price = last["price"]
             decision = last["decision"]
             result = "NEUTRAL"
+            
             if "BUY" in decision: result = "WIN" if current_price > old_price else "LOSS"
             elif "SELL" in decision: result = "WIN" if current_price < old_price else "LOSS"
             
             if result == "WIN":
-                memory["wins"] += 1; memory["weights"]["FUTURE"] += 0.05
+                memory["wins"] += 1
+                memory["weights"]["FUTURE"] += 0.05
+                memory["lessons"].append(f"[{now.strftime('%H:%M')}] WIN: Neural Pathways Strengthened.")
             elif result == "LOSS":
-                memory["losses"] += 1; memory["weights"]["FUTURE"] -= 0.05
+                memory["losses"] += 1
+                memory["weights"]["FUTURE"] -= 0.05
+                memory["lessons"].append(f"[{now.strftime('%H:%M')}] LOSS: Re-calibrating Weights.")
             
             total = memory["wins"] + memory["losses"]
             memory["accuracy"] = round((memory["wins"]/total)*100, 1) if total > 0 else 0
@@ -175,6 +188,9 @@ def self_construction_loop(current_price, memory):
     except: pass
     return memory
 
+# ==========================================
+# 6. AI CORE: 10,000 TRADERS (GEMINI 2.0)
+# ==========================================
 class ChellakiliBrain:
     def __init__(self):
         self.model = None
@@ -185,24 +201,31 @@ class ChellakiliBrain:
     def consult_10000_traders(self, prompt):
         if not self.model: return "AI Offline"
         try:
-            full_prompt = f"Act as Collective Intelligence of 10,000 Elite Traders. You are Chellakili. {prompt}. Answer in Tanglish."
+            full_prompt = f"""
+            Act as the Collective Intelligence of 10,000 Elite Traders with 10,000 years of combined market experience.
+            You are 'Chellakili', the CM-X System Guardian.
+            
+            {prompt}
+            
+            Answer in sharp Tanglish (Tamil + English). Be direct like a Boss.
+            """
             res = self.model.generate_content(full_prompt)
             return res.text
         except: return "Neural Link Unstable"
 
 # ==========================================
-# 6. MAIN EXECUTION
+# 7. MAIN EXECUTION
 # ==========================================
 
 # Init
 if 'auth' not in st.session_state: st.session_state.auth = False
 if not st.session_state.auth:
-    pwd = st.text_input("🔐 ACCESS CODE", type="password")
+    pwd = st.text_input("🔐 LIVE ACCESS CODE", type="password")
     if st.button("UNLOCK"):
         if pwd == "boss": st.session_state.auth = True; st.rerun()
     st.stop()
 
-if 'history' not in st.session_state: st.session_state.history = []
+if 'history' not in st.session_state: st.session_state.history = [19500]*50
 if 'memory' not in st.session_state: st.session_state.memory = load_blackbox()
 if 'kf' not in st.session_state: st.session_state.kf = KalmanFilter()
 if 'brain' not in st.session_state: st.session_state.brain = ChellakiliBrain()
@@ -211,24 +234,23 @@ if 'brain' not in st.session_state: st.session_state.brain = ChellakiliBrain()
 with st.sidebar:
     st.header("⚙️ CONTROLS")
     speed_mode = st.toggle("⚡ Hyper-Speed", value=True)
-    voice_on = st.toggle("🔊 Voice", value=True)
-    if st.button("Test Telegram"): send_telegram("Live Market Online.")
+    voice_on = st.toggle("🔊 Voice Alerts", value=True)
+    if st.button("Test Telegram"): send_telegram("CM-X Live Online.")
+    st.markdown("---")
+    st.metric("Self-Learning Accuracy", f"{st.session_state.memory['accuracy']}%")
+    st.caption(f"Trades Learned: {st.session_state.memory['wins'] + st.session_state.memory['losses']}")
 
-# --- GET LIVE DATA ---
-live_price, status = get_live_price()
+# --- 1. GET PRICE (LIVE OR SIMULATION) ---
+live_price, status_msg = get_live_price()
 
-# இணைப்பு கிடைக்கவில்லை என்றால் பழைய முறையை (Simulation) பயன்படுத்து
 if live_price is None:
-    # Fallback to simulation if market closed or token expired
-    if len(st.session_state.history) > 0:
-        live_price = st.session_state.history[-1] + np.random.randint(-10, 15)
-    else:
-        live_price = 19500.0 # Default start
+    # Fallback Simulation if API Fails/Market Closed
+    live_price = st.session_state.history[-1] + np.random.randint(-15, 20)
     status_color = "text-red"
-    status_text = f"SIMULATION ({status})"
+    status_display = f"SIMULATION ({status_msg})"
 else:
     status_color = "text-green"
-    status_text = f"LIVE MARKET ({status})"
+    status_display = f"LIVE MARKET ({status_msg})"
 
 # Update History
 st.session_state.history.append(live_price)
@@ -236,37 +258,42 @@ if len(st.session_state.history) > 50: st.session_state.history.pop(0)
 
 # Header
 c1, c2 = st.columns([3, 1])
-with c1: st.markdown("<h1>🦁 CM-X <span style='color:#00f3ff'>LIVE GOD MODE</span></h1>", unsafe_allow_html=True)
-with c2: st.markdown(f"<div class='holo-card' style='text-align:center;'><span class='{status_color}'>{status_text}</span><br>{get_time().strftime('%H:%M:%S')}</div>", unsafe_allow_html=True)
+with c1: st.markdown("<h1>🦁 CM-X <span style='color:#00f3ff'>LIVE BLACK BOX</span></h1>", unsafe_allow_html=True)
+with c2: st.markdown(f"<div class='holo-card' style='text-align:center;'><span class='{status_color}'>{status_display}</span><br>{get_time().strftime('%H:%M:%S')}</div>", unsafe_allow_html=True)
 
-# --- CALCULATIONS ---
+# --- 2. EXECUTE ALL FORMULAS ---
 kf_price = st.session_state.kf.update(live_price)
 vel, acc = calculate_physics(st.session_state.history)
 entropy = calculate_entropy(st.session_state.history[-20:])
-volatility = np.std(st.session_state.history[-10:]) / np.mean(st.session_state.history[-10:]) if len(st.session_state.history) > 10 else 0.01
+volatility = np.std(st.session_state.history[-10:]) / np.mean(st.session_state.history[-10:])
 mc_win = run_monte_carlo(live_price, volatility)
 future_price = predict_future(st.session_state.history)
 
+# Self Construction Loop
 st.session_state.memory = self_construction_loop(live_price, st.session_state.memory)
 
-# --- VOTING ---
+# --- 3. VOTING SYSTEM ---
 score = 0
 weights = st.session_state.memory["weights"]
 votes = []
 
-if vel > 1.0 and acc > 0: score += weights["PHYSICS"]; votes.append("PHY: BUY")
-elif vel < -1.0 and acc < 0: score -= weights["PHYSICS"]; votes.append("PHY: SELL")
+if vel > 1.5 and acc > 0: 
+    score += weights["PHYSICS"]; votes.append("PHY: BUY")
+elif vel < -1.5 and acc < 0: 
+    score -= weights["PHYSICS"]; votes.append("PHY: SELL")
 
-if future_price > live_price + 3 and mc_win > 60: score += weights["FUTURE"]; votes.append("MATH: BUY")
-elif future_price < live_price - 3 and mc_win < 40: score -= weights["FUTURE"]; votes.append("MATH: SELL")
+if future_price > live_price + 3 and mc_win > 60:
+    score += weights["FUTURE"]; votes.append("MATH: BUY")
+elif future_price < live_price - 3 and mc_win < 40:
+    score -= weights["FUTURE"]; votes.append("MATH: SELL")
 
 if entropy > 1.8: score -= 5; votes.append("CHAOS: TRAP")
 
 decision = "WAIT"
-if score > 2.0: decision = "BUY CE 🚀"
-elif score < -2.0: decision = "BUY PE 🩸"
+if score > 2.5: decision = "BUY CE 🚀"
+elif score < -2.5: decision = "BUY PE 🩸"
 
-# --- DISPLAY ---
+# --- 4. DISPLAY DASHBOARD ---
 m1, m2, m3, m4 = st.columns(4)
 with m1: st.markdown(f"<div class='holo-card'><small>PRICE</small><br><div class='metric-val text-cyan'>{live_price}</div></div>", unsafe_allow_html=True)
 with m2: st.markdown(f"<div class='holo-card'><small>VELOCITY</small><br><div class='metric-val text-green'>{vel:.2f}</div></div>", unsafe_allow_html=True)
@@ -285,17 +312,18 @@ with g1:
 with g2:
     st.markdown("### 🖥️ BLACK BOX LOGS")
     log_txt = f"""
-    > [SOURCE] {status_text}
+    > [SOURCE] {status_display}
     > [PHYSICS] Vel: {vel:.2f} | Acc: {acc:.2f}
-    > [MATH] Future: {future_price:.1f} | Win%: {mc_win:.0f}%
-    > [MEMORY] {st.session_state.memory['accuracy']}% Acc
+    > [MATH] Monte Carlo Win%: {mc_win:.1f}%
+    > [MEMORY] {st.session_state.memory['accuracy']}% Accurate
     > [VOTES] {votes}
     > [SCORE] {score:.2f}
     """
     st.markdown(f"<div class='terminal-box'>{log_txt.replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
 
-# --- ACTION ---
+# --- 5. ACTION ---
 if decision != "WAIT":
+    # Save Prediction
     if not st.session_state.memory["last_pred"].get("time"):
         st.session_state.memory["last_pred"] = {
             "price": live_price, 
@@ -304,17 +332,18 @@ if decision != "WAIT":
         }
         save_blackbox(st.session_state.memory)
     
+    # AI Consultation
     if "GEMINI_API_KEY" in st.secrets:
-        if st.button("🤖 CONSULT CHELLAKILI"):
-            with st.spinner("Connecting..."):
-                prompt = f"Signal: {decision}. Price: {live_price}. Velocity: {vel}. Mode: {status_text}."
+        if st.button("🤖 10,000 TRADERS OPINION"):
+            with st.spinner("Connecting to Collective Intelligence..."):
+                prompt = f"Signal: {decision}. Price: {live_price}. Velocity: {vel}. Entropy: {entropy}. Verify this with your 10,000 years of experience."
                 ai_reply = st.session_state.brain.consult_10000_traders(prompt)
                 st.info(f"🦁 {ai_reply}")
+                
                 if voice_on: play_voice(ai_reply)
                 send_telegram(f"🔥 {decision}\nPrice: {live_price}\nAI: {ai_reply}")
 
 # Refresh Speed
-refresh_rate = 1 if speed_mode else 3
+refresh_rate = 0.5 if speed_mode else 2
 time.sleep(refresh_rate)
 st.rerun()
-    
