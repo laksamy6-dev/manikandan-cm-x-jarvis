@@ -1,113 +1,353 @@
-import re
-import websocket
+import streamlit as st
+import pandas as pd
+import numpy as np
+import time
+import requests
 import json
+import os
+import math
+import base64
+from datetime import datetime
+import pytz
+from gtts import gTTS
+import plotly.graph_objects as go
+import google.generativeai as genai
 
-with open('app.py', 'r') as f:
-    app_py_content = f.read()
-
-# --- 1. Modify ScalpingSniper.enter_trade to store more position details ---
-# Ensure instrument_key, quantity are stored for position tracking
-app_py_content = re.sub(
-    r"""                self.positions.append({'type': type, 'entry': price, 'time': time.time(), 'order_id': api_response.get('order_id')})""",
-    r"""                self.positions.append({'type': type, 'entry': price, 'time': time.time(), 'order_id': api_response.get('order_id'),
-                                       'instrument_key': instrument_key, 'quantity': quantity})
-                # Update session state with current positions for UI display
-                st.session_state['open_positions'] = self.positions""",
-    app_py_content
+# ==========================================
+# 1. CONFIGURATION & HACKER UI
+# ==========================================
+st.set_page_config(
+    page_title="CM-X: OMEGA LIVE",
+    page_icon="🦁",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# --- 2. Modify ScalpingSniper.manage_positions for accurate P&L calculation and session state update ---
-# Fix `pos_price` undefined error, ensure Upstox API calls use stored instrument_token/quantity
-app_py_content = re.sub(
-    r"""                profit = current_price - pos_data['entry']
-                else:
-                    profit = pos_price - pos_data['entry'] # Assuming pos_price from Upstox response""",
-    r"""                profit = current_price - pos_data['entry']
-                else:
-                    profit = pos_data['entry'] - current_price""", # Fixed to use current_price for PUTs
-    app_py_content
-)
+# Hacker Style CSS
+st.markdown("""
+    <style>
+    .stApp { background-color: #000000; color: #00f3ff; font-family: 'Courier New', monospace; }
+    .holo-card { background: rgba(10, 20, 30, 0.95); border: 1px solid #00f3ff; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 0 15px rgba(0, 243, 255, 0.15); }
+    .metric-val { font-size: 24px; font-weight: bold; }
+    .text-green { color: #00ff00; text-shadow: 0 0 10px #00ff00; }
+    .text-red { color: #ff0000; text-shadow: 0 0 10px #ff0000; }
+    .text-cyan { color: #00f3ff; text-shadow: 0 0 10px #00f3ff; }
+    .terminal-box { background: #050505; border-left: 3px solid #00ff00; padding: 10px; height: 200px; overflow-y: auto; font-size: 11px; color: #00ff00; font-family: 'Courier New'; }
+    </style>
+""", unsafe_allow_html=True)
 
-app_py_content = re.sub(
-    r"""                    quantity=50, # Need actual quantity from position
-                    product_type='INTRADAY',
-                    order_type='MARKET',
-                    instrument_token='NSE_EQ|INE000000000', # Need actual instrument token""",
-    r"""                    quantity=pos_data['quantity'],
-                    product_type='INTRADAY',
-                    order_type='MARKET',
-                    instrument_token=pos_data['instrument_key'],""",
-    app_py_content
-)
+# ==========================================
+# 2. UPSTOX LIVE CONNECTION (ENGINE)
+# ==========================================
+def get_live_price():
+    """
+    Upstox API மூலம் நிஜ மார்க்கெட் விலையை எடுக்கும்.
+    """
+    try:
+        if "UPSTOX_ACCESS_TOKEN" in st.secrets:
+            # Token காலியாக இருந்தால் Simulation மோடுக்கு மாறும்
+            if st.secrets["UPSTOX_ACCESS_TOKEN"] == "இங்கே_உங்க_நீளமான_புது_டோக்கனை_பேஸ்ட்_பண்ணுங்க":
+                return None, "🟠 NO TOKEN"
+                
+            url = "https://api.upstox.com/v2/market-quote/ltp"
+            headers = {
+                'Accept': 'application/json',
+                'Authorization': f'Bearer {st.secrets["UPSTOX_ACCESS_TOKEN"]}'
+            }
+            # Nifty 50 Instrument Key
+            params = {'instrument_key': 'NSE_INDEX|Nifty 50'}
+            
+            response = requests.get(url, headers=headers, params=params)
+            data = response.json()
+            
+            if data.get('status') == 'success':
+                price = data['data']['NSE_INDEX:Nifty 50']['last_price']
+                return float(price), "🟢 LIVE"
+            else:
+                return None, "🔴 API FAIL"
+    except Exception as e:
+        return None, f"🔴 ERROR: {str(e)}"
+    
+    return None, "🔴 CONFIG ERROR"
 
-# Also update session state with current positions after any modifications
-app_py_content = re.sub(
-    r"""            # Remove closed positions from internal tracking (iterating backwards to avoid index issues)
-            for i in sorted(closed_positions_indices, reverse=True):
-                del self.positions[i]""",
-    r"""            # Remove closed positions from internal tracking (iterating backwards to avoid index issues)
-            for i in sorted(closed_positions_indices, reverse=True):
-                del self.positions[i]
-            st.session_state['open_positions'] = self.positions""",
-    app_py_content
-)
+# ==========================================
+# 3. UTILITY FUNCTIONS
+# ==========================================
+def get_time():
+    return datetime.now(pytz.timezone('Asia/Kolkata'))
 
-# --- 3. Modify run_live_bot to store last price and update position data in session state ---
-app_py_content = re.sub(
-    r"""            all_decisions.append(decision)
-            all_confidences.append(conf)
-            all_phys_data.append(phys)""",
-    r"""            all_decisions.append(decision)
-            all_confidences.append(conf)
-            all_phys_data.append(phys)
+def send_telegram(msg):
+    try:
+        if "TELEGRAM_BOT_TOKEN" in st.secrets:
+            requests.get(f"https://api.telegram.org/bot{st.secrets['TELEGRAM_BOT_TOKEN']}/sendMessage",
+                         params={"chat_id": st.secrets['TELEGRAM_CHAT_ID'], "text": msg})
+    except: pass
 
-            # Update latest price and open positions in session state
-            st.session_state['latest_market_price'] = p
-            st.session_state['open_positions'] = bot.positions""",
-    app_py_content
-)
+def play_voice(text):
+    try:
+        tts = gTTS(text=text, lang='en')
+        tts.save("voice.mp3")
+        with open("voice.mp3", "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+            st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
+        os.remove("voice.mp3")
+    except: pass
 
+# ==========================================
+# 4. MATH & PHYSICS ENGINE
+# ==========================================
 
-# --- 4. Add UI for displaying real-time live trading status and open positions ---
-# This will be added after the main bot control logic and before the charts
+# A. KALMAN FILTER
+class KalmanFilter:
+    def __init__(self):
+        self.last_estimate = 0
+        self.err_estimate = 1
+        self.q = 0.01
+    def update(self, measurement):
+        if self.last_estimate == 0: self.last_estimate = measurement
+        kalman_gain = self.err_estimate / (self.err_estimate + 1)
+        current_estimate = self.last_estimate + kalman_gain * (measurement - self.last_estimate)
+        self.err_estimate = (1.0 - kalman_gain) * self.err_estimate + abs(self.last_estimate - current_estimate) * self.q
+        self.last_estimate = current_estimate
+        return current_estimate
 
-# Find the place where the charts are displayed
-charts_display_marker = r"""# Display charts after simulation is complete and results are available"""
+# B. PHYSICS ENGINE
+def calculate_physics(history):
+    if len(history) < 3: return 0, 0
+    v = history[-1] - history[-2]
+    a = v - (history[-2] - history[-3])
+    return v, a
 
-# Add the live status and positions display after the bot start/stop buttons and before charts
-new_ui_elements = '''
-# --- Real-time Live Trading Status and Positions ---
-st.subheader("📊 Live Trading Dashboard")
+# C. ENTROPY (CHAOS)
+def calculate_entropy(data):
+    if len(data) < 10: return 0
+    hist, _ = np.histogram(data, bins=10, density=True)
+    hist = hist[hist > 0]
+    return -np.sum(hist * np.log(hist))
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("Bot Status", "🟢 Running" if st.session_state.get('bot_running', False) else "🔴 Stopped")
-with col2:
-    st.metric("Latest Market Price", f"₹{st.session_state.get('latest_market_price', 'N/A'):.2f}")
-with col3:
-    if st.session_state.get('scheduled_to_run', False):
-        st.info("Waiting for market open...")
-    else:
-        st.empty() # Clear placeholder if not waiting
+# D. MONTE CARLO
+def run_monte_carlo(price, volatility, sims=1000):
+    wins = 0
+    vol = 0.01 if volatility == 0 else volatility
+    for _ in range(sims):
+        sim_p = price * math.exp((0 - 0.5 * vol**2) + vol * np.random.normal())
+        if sim_p > price: wins += 1
+    return (wins / sims) * 100
 
-st.markdown("#### Open Positions")
-if st.session_state.get('open_positions'):
-    positions_df = pd.DataFrame(st.session_state['open_positions'])
-    positions_df['PnL'] = positions_df.apply(lambda row: (st.session_state.get('latest_market_price', row['entry']) - row['entry']) * row['quantity'] if row['type'] == 'CALL' else (row['entry'] - st.session_state.get('latest_market_price', row['entry'])) * row['quantity'], axis=1)
-    st.dataframe(positions_df[['instrument_key', 'type', 'entry', 'quantity', 'PnL']])
+# E. FUTURE PREDICTION
+def predict_future(history):
+    if len(history) < 20: return history[-1]
+    y = np.array(history[-20:])
+    x = np.arange(len(y))
+    z = np.polyfit(x, y, 1)
+    return np.poly1d(z)(len(y) + 10)
+
+# ==========================================
+# 5. BLACK BOX MEMORY (SELF-CONSTRUCTION)
+# ==========================================
+MEMORY_FILE = "cm_x_blackbox.json"
+
+def load_blackbox():
+    if os.path.exists(MEMORY_FILE):
+        with open(MEMORY_FILE, "r") as f: return json.load(f)
+    return {
+        "wins": 0, "losses": 0, "accuracy": 0.0, 
+        "weights": {"PHYSICS": 1.5, "MATH": 1.2, "FUTURE": 1.5, "CHAOS": 1.0},
+        "last_pred": {}, "lessons": []
+    }
+
+def save_blackbox(mem):
+    with open(MEMORY_FILE, "w") as f: json.dump(mem, f, indent=4)
+
+def self_construction_loop(current_price, memory):
+    last = memory.get("last_pred", {})
+    if not last.get("time"): return memory
+    
+    try:
+        last_time = datetime.strptime(last["time"], '%Y-%m-%d %H:%M:%S')
+        now = get_time().replace(tzinfo=None)
+        
+        # 1 Minute Learning Check
+        if (now - last_time).total_seconds() / 60 >= 1:
+            old_price = last["price"]
+            decision = last["decision"]
+            result = "NEUTRAL"
+            
+            if "BUY" in decision: result = "WIN" if current_price > old_price else "LOSS"
+            elif "SELL" in decision: result = "WIN" if current_price < old_price else "LOSS"
+            
+            if result == "WIN":
+                memory["wins"] += 1
+                memory["weights"]["FUTURE"] += 0.05
+                memory["lessons"].append(f"[{now.strftime('%H:%M')}] WIN: Strategy Boosted.")
+            elif result == "LOSS":
+                memory["losses"] += 1
+                memory["weights"]["FUTURE"] -= 0.05
+                memory["lessons"].append(f"[{now.strftime('%H:%M')}] LOSS: Tuning Logic.")
+            
+            total = memory["wins"] + memory["losses"]
+            memory["accuracy"] = round((memory["wins"]/total)*100, 1) if total > 0 else 0
+            memory["last_pred"] = {}
+            save_blackbox(memory)
+    except: pass
+    return memory
+
+# ==========================================
+# 6. AI CORE: 10,000 TRADERS (GEMINI 2.0)
+# ==========================================
+class ChellakiliBrain:
+    def __init__(self):
+        self.model = None
+        if "GEMINI_API_KEY" in st.secrets:
+            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+            # ✅ GEMINI 2.0 UPDATED HERE
+            self.model = genai.GenerativeModel('gemini-2.0-flash')
+
+    def consult_10000_traders(self, prompt):
+        if not self.model: return "AI Offline"
+        try:
+            full_prompt = f"""
+            Act as the Collective Intelligence of 10,000 Elite Traders.
+            You are 'Chellakili'.
+            {prompt}
+            Answer in sharp Tanglish.
+            """
+            res = self.model.generate_content(full_prompt)
+            return res.text
+        except: return "Neural Link Unstable"
+
+# ==========================================
+# 7. MAIN EXECUTION
+# ==========================================
+
+# Init
+if 'auth' not in st.session_state: st.session_state.auth = False
+if not st.session_state.auth:
+    pwd = st.text_input("🔐 LIVE ACCESS CODE", type="password")
+    if st.button("UNLOCK"):
+        if pwd == "boss": st.session_state.auth = True; st.rerun()
+    st.stop()
+
+if 'history' not in st.session_state: st.session_state.history = [19500]*50
+if 'memory' not in st.session_state: st.session_state.memory = load_blackbox()
+if 'kf' not in st.session_state: st.session_state.kf = KalmanFilter()
+if 'brain' not in st.session_state: st.session_state.brain = ChellakiliBrain()
+
+# Sidebar
+with st.sidebar:
+    st.header("⚙️ CONTROLS")
+    speed_mode = st.toggle("⚡ Hyper-Speed", value=True)
+    voice_on = st.toggle("🔊 Voice Alerts", value=True)
+    if st.button("Test Telegram"): send_telegram("CM-X Live Online.")
+    st.markdown("---")
+    st.metric("Self-Learning Accuracy", f"{st.session_state.memory['accuracy']}%")
+
+# --- 1. GET PRICE (LIVE OR SIMULATION) ---
+live_price, status_msg = get_live_price()
+
+if live_price is None:
+    # Fallback Simulation if API Fails/Market Closed
+    # Using random walk based on last price to be realistic
+    last_p = st.session_state.history[-1]
+    live_price = last_p + np.random.uniform(-5, 5)
+    status_color = "text-red"
+    status_display = f"SIMULATION ({status_msg})"
 else:
-    st.info("No open positions currently.")
+    status_color = "text-green"
+    status_display = f"LIVE MARKET ({status_msg})"
 
-'''
+# Update History
+st.session_state.history.append(live_price)
+if len(st.session_state.history) > 50: st.session_state.history.pop(0)
 
-# Insert new_ui_elements before the charts_display_marker
-app_py_content = app_py_content.replace(
-    charts_display_marker,
-    new_ui_elements + "\n" + charts_display_marker
-)
+# Header
+c1, c2 = st.columns([3, 1])
+with c1: st.markdown("<h1>🦁 CM-X <span style='color:#00f3ff'>LIVE GOD MODE</span></h1>", unsafe_allow_html=True)
+with c2: st.markdown(f"<div class='holo-card' style='text-align:center;'><span class='{status_color}'>{status_display}</span><br>{get_time().strftime('%H:%M:%S')}</div>", unsafe_allow_html=True)
 
-# Final check and write to file
-with open('app.py', 'w') as f:
-    f.write(app_py_content)
+# --- 2. EXECUTE ALL FORMULAS ---
+kf_price = st.session_state.kf.update(live_price)
+vel, acc = calculate_physics(st.session_state.history)
+entropy = calculate_entropy(st.session_state.history[-20:])
+volatility = np.std(st.session_state.history[-10:]) / np.mean(st.session_state.history[-10:]) if len(st.session_state.history) > 10 else 0.01
+mc_win = run_monte_carlo(live_price, volatility)
+future_price = predict_future(st.session_state.history)
 
-print("Modified app.py to integrate Upstox position management in ScalpingSniper.manage_positions and add live UI elements.")
+# Self Construction Loop
+st.session_state.memory = self_construction_loop(live_price, st.session_state.memory)
+
+# --- 3. VOTING SYSTEM ---
+score = 0
+weights = st.session_state.memory["weights"]
+votes = []
+
+if vel > 1.5 and acc > 0: 
+    score += weights["PHYSICS"]; votes.append("PHY: BUY")
+elif vel < -1.5 and acc < 0: 
+    score -= weights["PHYSICS"]; votes.append("PHY: SELL")
+
+if future_price > live_price + 3 and mc_win > 60:
+    score += weights["FUTURE"]; votes.append("MATH: BUY")
+elif future_price < live_price - 3 and mc_win < 40:
+    score -= weights["FUTURE"]; votes.append("MATH: SELL")
+
+if entropy > 1.8: score -= 5; votes.append("CHAOS: TRAP")
+
+decision = "WAIT"
+if score > 2.5: decision = "BUY CE 🚀"
+elif score < -2.5: decision = "BUY PE 🩸"
+
+# --- 4. DISPLAY DASHBOARD ---
+m1, m2, m3, m4 = st.columns(4)
+with m1: st.markdown(f"<div class='holo-card'><small>PRICE</small><br><div class='metric-val text-cyan'>{live_price:.2f}</div></div>", unsafe_allow_html=True)
+with m2: st.markdown(f"<div class='holo-card'><small>VELOCITY</small><br><div class='metric-val text-green'>{vel:.2f}</div></div>", unsafe_allow_html=True)
+with m3: st.markdown(f"<div class='holo-card'><small>ENTROPY</small><br><div class='metric-val {'text-red' if entropy>1.8 else 'text-green'}'>{entropy:.2f}</div></div>", unsafe_allow_html=True)
+with m4: st.markdown(f"<div class='holo-card'><small>DECISION</small><br><div class='metric-val text-cyan'>{decision}</div></div>", unsafe_allow_html=True)
+
+g1, g2 = st.columns([2, 1])
+with g1:
+    st.markdown("### 📈 QUANTUM CHART")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=st.session_state.history[-30:], mode='lines', name='Price', line=dict(color='#00f3ff')))
+    fig.add_trace(go.Scatter(y=[kf_price]*30, mode='lines', name='Kalman', line=dict(color='yellow', dash='dot')))
+    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=250, margin=dict(l=0,r=0,t=0,b=0))
+    st.plotly_chart(fig, use_container_width=True)
+
+with g2:
+    st.markdown("### 🖥️ BLACK BOX LOGS")
+    log_txt = f"""
+    > [SOURCE] {status_display}
+    > [PHYSICS] Vel: {vel:.2f} | Acc: {acc:.2f}
+    > [MATH] Monte Carlo Win%: {mc_win:.1f}%
+    > [MEMORY] {st.session_state.memory['accuracy']}% Accurate
+    > [VOTES] {votes}
+    > [SCORE] {score:.2f}
+    """
+    st.markdown(f"<div class='terminal-box'>{log_txt.replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+
+# --- 5. ACTION ---
+if decision != "WAIT":
+    # Save Prediction
+    if not st.session_state.memory["last_pred"].get("time"):
+        st.session_state.memory["last_pred"] = {
+            "price": live_price, 
+            "time": get_time().replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S'),
+            "decision": decision
+        }
+        save_blackbox(st.session_state.memory)
+    
+    # AI Consultation
+    if "GEMINI_API_KEY" in st.secrets:
+        if st.button("🤖 10,000 TRADERS OPINION"):
+            with st.spinner("Connecting to Collective Intelligence..."):
+                prompt = f"Signal: {decision}. Price: {live_price}. Velocity: {vel}. Entropy: {entropy}. Verify this with your 10,000 years of experience."
+                ai_reply = st.session_state.brain.consult_10000_traders(prompt)
+                st.info(f"🦁 {ai_reply}")
+                
+                if voice_on: play_voice(ai_reply)
+                send_telegram(f"🔥 {decision}\nPrice: {live_price}\nAI: {ai_reply}")
+
+# Refresh Speed
+refresh_rate = 0.5 if speed_mode else 2
+time.sleep(refresh_rate)
+st.rerun()
