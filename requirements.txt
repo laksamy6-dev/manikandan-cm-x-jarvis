@@ -1,9 +1,8 @@
 streamlit
 pandas
 numpy
-requests
 google-generativeai>=0.8.3
-python-dotenv
-plotly
+requests
 pytz
 gTTS
+plotly
