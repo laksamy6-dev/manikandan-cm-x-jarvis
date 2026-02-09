@@ -348,7 +348,23 @@ try:
         html_content = f.read()
     st.components.v1.html(html_content, height=800, scrolling=True)
 except FileNotFoundError:
-    st.error("Error: CM_X_Ultimate_Brahmastra_AI_FIXED_V3.html not found. Please ensure it's in the same directory.")
+    st.error("Error: CM_X_Ultimate_Brahmastra_AI_FIXED_V3.html not found.Please ensure it's in the same directory.")
+
+# --- GEMINI 2.0 INTEGRATION ---
+if "GEMINI_API_KEY" in st.secrets and final_decision != "WAIT":
+    if st.button("🤖 ACTIVATE GEMINI 2.0"):
+        try:
+            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+            # UPDATED TO GEMINI 2.0 FLASH
+            model = genai.GenerativeModel('gemini-2.0-flash') 
+            
+            with st.spinner("Connecting to Google Brain 2.0..."):
+                prompt = f"Act as CM-X. Decision: {final_decision}. Price: {raw_price}. Future: {future_price}. Explain in Tanglish."
+                res = model.generate_content(prompt)
+                st.success(f"🦁 JARVIS 2.0: {res.text}")
+                send_telegram(f"🔥 {final_decision}\nPrice: {raw_price}\nAI: {res.text}")
+        except Exception as e:
+            st.error(f"AI Error: {e}")
 
 # Auto-Refresh
 time.sleep(refresh_rate)
