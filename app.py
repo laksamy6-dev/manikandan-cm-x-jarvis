@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import time
-import google.generativeai as genai
 import requests
 import json
 import os
@@ -10,64 +9,70 @@ import math
 import base64
 from datetime import datetime
 import pytz
-from gtts import gTTS
 import plotly.graph_objects as go
+import google.generativeai as genai
 
 # ==========================================
-# 1. CONFIGURATION & HACKER UI
+# 1. PAGE CONFIG & IRON MAN HUD UI
 # ==========================================
 st.set_page_config(
-    page_title="CM-X: LIVE OMEGA BLACK BOX",
+    page_title="CM-X: BRAHMASTRA LIVE",
     page_icon="🦁",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Hacker Style CSS (Black Box Theme)
+# ULTRA-MODERN CSS
 st.markdown("""
     <style>
-    .stApp { background-color: #000000; color: #00f3ff; font-family: 'Courier New', monospace; }
-    .holo-card { background: rgba(10, 20, 30, 0.95); border: 1px solid #00f3ff; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 0 15px rgba(0, 243, 255, 0.15); }
-    .metric-val { font-size: 24px; font-weight: bold; }
-    .text-green { color: #00ff00; text-shadow: 0 0 10px #00ff00; }
-    .text-red { color: #ff0000; text-shadow: 0 0 10px #ff0000; }
-    .text-cyan { color: #00f3ff; text-shadow: 0 0 10px #00f3ff; }
-    .terminal-box { background: #050505; border-left: 3px solid #00ff00; padding: 10px; height: 200px; overflow-y: auto; font-size: 11px; color: #00ff00; font-family: 'Courier New'; }
+    /* Main Background */
+    .stApp {
+        background-color: #000000 !important;
+        font-family: 'Segoe UI', sans-serif;
+    }
+    
+    /* Hide Streamlit Header/Footer */
+    header, footer {visibility: hidden;}
+    
+    /* Neon Cards */
+    .neon-card {
+        background: rgba(10, 15, 20, 0.95);
+        border: 1px solid #00f3ff;
+        box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 15px;
+        transition: all 0.3s ease-in-out;
+    }
+    .neon-card:hover {
+        box-shadow: 0 0 25px rgba(0, 243, 255, 0.5);
+        transform: scale(1.02);
+    }
+    
+    /* Text Colors */
+    .big-text { font-size: 32px; font-weight: 800; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+    .neon-green { color: #00ff00; text-shadow: 0 0 10px #00ff00; }
+    .neon-red { color: #ff0000; text-shadow: 0 0 10px #ff0000; }
+    .neon-cyan { color: #00f3ff; text-shadow: 0 0 10px #00f3ff; }
+    
+    /* Terminal */
+    .terminal {
+        background: #050505;
+        border-left: 4px solid #00ff00;
+        color: #00ff00;
+        font-family: 'Courier New', monospace;
+        padding: 15px;
+        height: 250px;
+        overflow-y: auto;
+        font-size: 12px;
+        border-radius: 5px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. UPSTOX LIVE CONNECTION (THE ENGINE)
-# ==========================================
-def get_live_price():
-    """
-    Upstox API மூலம் நிஜ மார்க்கெட் விலையை எடுக்கும்.
-    """
-    try:
-        if "UPSTOX_ACCESS_TOKEN" in st.secrets:
-            url = "https://api.upstox.com/v2/market-quote/ltp"
-            headers = {
-                'Accept': 'application/json',
-                'Authorization': f'Bearer {st.secrets["UPSTOX_ACCESS_TOKEN"]}'
-            }
-            # Nifty 50 Instrument Key
-            params = {'instrument_key': 'NSE_INDEX|Nifty 50'}
-            
-            response = requests.get(url, headers=headers, params=params)
-            data = response.json()
-            
-            if data['status'] == 'success':
-                price = data['data']['NSE_INDEX:Nifty 50']['last_price']
-                return float(price), "🟢 LIVE"
-            else:
-                return None, "🔴 API FAIL"
-    except Exception as e:
-        return None, f"🔴 ERROR: {str(e)}"
-    
-    return None, "🔴 NO TOKEN"
-
-# ==========================================
-# 3. CORE UTILITIES
+# 2. SYSTEM UTILITIES
 # ==========================================
 def get_time():
     return datetime.now(pytz.timezone('Asia/Kolkata'))
@@ -79,271 +84,215 @@ def send_telegram(msg):
                          params={"chat_id": st.secrets['TELEGRAM_CHAT_ID'], "text": msg})
     except: pass
 
-def play_voice(text):
+# ==========================================
+# 3. UPSTOX LIVE ENGINE (REAL TRADING)
+# ==========================================
+def get_live_price():
     try:
-        tts = gTTS(text=text, lang='en')
-        tts.save("voice.mp3")
-        with open("voice.mp3", "rb") as f:
-            b64 = base64.b64encode(f.read()).decode()
-            st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
-        os.remove("voice.mp3")
-    except: pass
+        if "UPSTOX_ACCESS_TOKEN" in st.secrets:
+            url = "https://api.upstox.com/v2/market-quote/ltp"
+            headers = {
+                'Accept': 'application/json',
+                'Authorization': f'Bearer {st.secrets["UPSTOX_ACCESS_TOKEN"]}'
+            }
+            # NIFTY BANK or NIFTY 50 (Change as needed)
+            params = {'instrument_key': 'NSE_INDEX|Nifty Bank'} 
+            
+            response = requests.get(url, headers=headers, params=params)
+            data = response.json()
+            
+            if data['status'] == 'success':
+                price = data['data']['NSE_INDEX:Nifty Bank']['last_price']
+                return float(price), "LIVE 🟢"
+    except Exception as e:
+        return None, f"ERR: {str(e)}"
+    return None, "NO TOKEN 🔴"
+
+def place_order(signal, price):
+    """
+    உண்மையான ஆர்டர் போடும் இடம்.
+    (Safety: தற்போதைக்கு Telegram Alert மட்டும் அனுப்புகிறேன்.
+    API Call உள்ளே கமெண்ட் செய்யப்பட்டுள்ளது)
+    """
+    msg = f"🚀 AUTOMATED ORDER TRIGGERED!\nSignal: {signal}\nIndex Price: {price}\nTime: {get_time()}"
+    send_telegram(msg)
+    # உண்மையான ஆர்டர் போட கீழே உள்ளதை Uncomment செய்யவும்:
+    # requests.post("https://api.upstox.com/v2/order/place", headers=..., data=...)
+    return True
 
 # ==========================================
-# 4. MATH & PHYSICS ENGINE (ALL FEATURES)
+# 4. AGGRESSIVE SCALPING BRAIN (Physics + Math)
 # ==========================================
-
-# A. KALMAN FILTER
-class KalmanFilter:
-    def __init__(self):
-        self.last_estimate = 0
-        self.err_estimate = 1
-        self.q = 0.01
-    def update(self, measurement):
-        if self.last_estimate == 0: self.last_estimate = measurement
-        kalman_gain = self.err_estimate / (self.err_estimate + 1)
-        current_estimate = self.last_estimate + kalman_gain * (measurement - self.last_estimate)
-        self.err_estimate = (1.0 - kalman_gain) * self.err_estimate + abs(self.last_estimate - current_estimate) * self.q
-        self.last_estimate = current_estimate
-        return current_estimate
-
-# B. PHYSICS ENGINE
 def calculate_physics(history):
     if len(history) < 3: return 0, 0
-    v = history[-1] - history[-2]
-    a = v - (history[-2] - history[-3])
-    return v, a
+    vel = history[-1] - history[-2]
+    acc = vel - (history[-2] - history[-3])
+    return vel, acc
 
-# C. ENTROPY (CHAOS)
-def calculate_entropy(data):
-    if len(data) < 10: return 0
-    hist, _ = np.histogram(data, bins=10, density=True)
-    hist = hist[hist > 0]
-    return -np.sum(hist * np.log(hist))
-
-# D. MONTE CARLO
-def run_monte_carlo(price, volatility, sims=1000):
+def run_monte_carlo(price, vol, sims=500):
     wins = 0
-    vol = 0.01 if volatility == 0 else volatility
+    vol = 0.01 if vol == 0 else vol
     for _ in range(sims):
         sim_p = price * math.exp((0 - 0.5 * vol**2) + vol * np.random.normal())
         if sim_p > price: wins += 1
     return (wins / sims) * 100
 
-# E. FUTURE PREDICTION (Linear Regression)
-def predict_future(history):
-    if len(history) < 20: return history[-1]
-    y = np.array(history[-20:])
-    x = np.arange(len(y))
-    z = np.polyfit(x, y, 1)
-    return np.poly1d(z)(len(y) + 10)
-
-# ==========================================
-# 5. BLACK BOX MEMORY (SELF-CONSTRUCTION)
-# ==========================================
-MEMORY_FILE = "cm_x_blackbox.json"
-
-def load_blackbox():
-    if os.path.exists(MEMORY_FILE):
-        with open(MEMORY_FILE, "r") as f: return json.load(f)
-    return {
-        "wins": 0, "losses": 0, "accuracy": 0.0, 
-        "weights": {"PHYSICS": 1.5, "MATH": 1.2, "FUTURE": 1.5, "CHAOS": 1.0},
-        "last_pred": {}, "lessons": []
-    }
-
-def save_blackbox(mem):
-    with open(MEMORY_FILE, "w") as f: json.dump(mem, f, indent=4)
-
-def self_construction_loop(current_price, memory):
-    last = memory.get("last_pred", {})
-    if not last.get("time"): return memory
-    
-    try:
-        last_time = datetime.strptime(last["time"], '%Y-%m-%d %H:%M:%S')
-        now = get_time().replace(tzinfo=None)
-        
-        # 1 Minute Learning Check
-        if (now - last_time).total_seconds() / 60 >= 1:
-            old_price = last["price"]
-            decision = last["decision"]
-            result = "NEUTRAL"
-            
-            if "BUY" in decision: result = "WIN" if current_price > old_price else "LOSS"
-            elif "SELL" in decision: result = "WIN" if current_price < old_price else "LOSS"
-            
-            if result == "WIN":
-                memory["wins"] += 1
-                memory["weights"]["FUTURE"] += 0.05
-                memory["lessons"].append(f"[{now.strftime('%H:%M')}] WIN: Neural Pathways Strengthened.")
-            elif result == "LOSS":
-                memory["losses"] += 1
-                memory["weights"]["FUTURE"] -= 0.05
-                memory["lessons"].append(f"[{now.strftime('%H:%M')}] LOSS: Re-calibrating Weights.")
-            
-            total = memory["wins"] + memory["losses"]
-            memory["accuracy"] = round((memory["wins"]/total)*100, 1) if total > 0 else 0
-            memory["last_pred"] = {}
-            save_blackbox(memory)
-    except: pass
-    return memory
-
-# ==========================================
-# 6. AI CORE: 10,000 TRADERS (GEMINI 2.0)
-# ==========================================
 class ChellakiliBrain:
     def __init__(self):
         self.model = None
         if "GEMINI_API_KEY" in st.secrets:
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-            self.model = genai.GenerativeModel('gemini-2.0-flash')
+            self.model = genai.GenerativeModel('gemini-2.0-flash') # 2.0 Flash
 
-    def consult_10000_traders(self, prompt):
-        if not self.model: return "AI Offline"
+    def ask(self, prompt):
+        if not self.model: return "BRAIN OFFLINE"
         try:
-            full_prompt = f"""
-            Act as the Collective Intelligence of 10,000 Elite Traders with 10,000 years of combined market experience.
-            You are 'Chellakili', the CM-X System Guardian.
-            
-            {prompt}
-            
-            Answer in sharp Tanglish (Tamil + English). Be direct like a Boss.
-            """
-            res = self.model.generate_content(full_prompt)
+            res = self.model.generate_content(f"Act as Elite Trader. {prompt}. Short Tanglish answer.")
             return res.text
-        except: return "Neural Link Unstable"
+        except: return "THINKING..."
 
 # ==========================================
-# 7. MAIN EXECUTION
+# 5. MAIN DASHBOARD LOGIC
 # ==========================================
 
-# Init
+# A. SECURITY CHECK
 if 'auth' not in st.session_state: st.session_state.auth = False
 if not st.session_state.auth:
-    pwd = st.text_input("🔐 LIVE ACCESS CODE", type="password")
-    if st.button("UNLOCK"):
-        if pwd == "boss": st.session_state.auth = True; st.rerun()
+    c1, c2, c3 = st.columns([1,2,1])
+    with c2:
+        st.markdown("<br><br><h1 style='text-align:center; color:#00f3ff;'>🔐 IDENTITY VERIFICATION</h1>", unsafe_allow_html=True)
+        pwd = st.text_input("ACCESS CODE", type="password")
+        if st.button("INITIATE SYSTEM", use_container_width=True):
+            if pwd == "boss": st.session_state.auth = True; st.rerun()
     st.stop()
 
-if 'history' not in st.session_state: st.session_state.history = [19500]*50
-if 'memory' not in st.session_state: st.session_state.memory = load_blackbox()
-if 'kf' not in st.session_state: st.session_state.kf = KalmanFilter()
+# B. DATA INIT
 if 'brain' not in st.session_state: st.session_state.brain = ChellakiliBrain()
 
-# Sidebar
-with st.sidebar:
-    st.header("⚙️ CONTROLS")
-    speed_mode = st.toggle("⚡ Hyper-Speed", value=True)
-    voice_on = st.toggle("🔊 Voice Alerts", value=True)
-    if st.button("Test Telegram"): send_telegram("CM-X Live Online.")
-    st.markdown("---")
-    st.metric("Self-Learning Accuracy", f"{st.session_state.memory['accuracy']}%")
-    st.caption(f"Trades Learned: {st.session_state.memory['wins'] + st.session_state.memory['losses']}")
+# Get Price First to Initialize History correctly (Fixing the Jump Issue)
+live_price, status = get_live_price()
+if live_price is None: 
+    # Fallback to simulation
+    live_price = 25000.0 if 'history' not in st.session_state else st.session_state.history[-1] + np.random.randint(-10, 15)
+    status = "SIMULATION 🟠"
 
-# --- 1. GET PRICE (LIVE OR SIMULATION) ---
-live_price, status_msg = get_live_price()
-
-if live_price is None:
-    # Fallback Simulation if API Fails/Market Closed
-    live_price = st.session_state.history[-1] + np.random.randint(-15, 20)
-    status_color = "text-red"
-    status_display = f"SIMULATION ({status_msg})"
-else:
-    status_color = "text-green"
-    status_display = f"LIVE MARKET ({status_msg})"
+if 'history' not in st.session_state: 
+    # Fill history with current price to avoid graph jump
+    st.session_state.history = [live_price] * 50 
 
 # Update History
 st.session_state.history.append(live_price)
 if len(st.session_state.history) > 50: st.session_state.history.pop(0)
 
-# Header
-c1, c2 = st.columns([3, 1])
-with c1: st.markdown("<h1>🦁 CM-X <span style='color:#00f3ff'>LIVE BLACK BOX</span></h1>", unsafe_allow_html=True)
-with c2: st.markdown(f"<div class='holo-card' style='text-align:center;'><span class='{status_color}'>{status_display}</span><br>{get_time().strftime('%H:%M:%S')}</div>", unsafe_allow_html=True)
+# C. SIDEBAR CONTROLS
+with st.sidebar:
+    st.header("⚙️ SYSTEM CONTROL")
+    st.markdown(f"**STATUS:** {status}")
+    auto_trade = st.toggle("🚀 AUTO-EXECUTE ORDERS", value=False)
+    aggro_mode = st.toggle("🔥 AGGRESSIVE SCALPING", value=True)
+    if st.button("📡 PING TELEGRAM"): send_telegram("System Live.")
 
-# --- 2. EXECUTE ALL FORMULAS ---
-kf_price = st.session_state.kf.update(live_price)
+# D. CALCULATIONS (THE BRAIN)
 vel, acc = calculate_physics(st.session_state.history)
-entropy = calculate_entropy(st.session_state.history[-20:])
 volatility = np.std(st.session_state.history[-10:]) / np.mean(st.session_state.history[-10:])
-mc_win = run_monte_carlo(live_price, volatility)
-future_price = predict_future(st.session_state.history)
+win_prob = run_monte_carlo(live_price, volatility)
 
-# Self Construction Loop
-st.session_state.memory = self_construction_loop(live_price, st.session_state.memory)
-
-# --- 3. VOTING SYSTEM ---
+# --- DECISION LOGIC (AGGRESSIVE) ---
 score = 0
-weights = st.session_state.memory["weights"]
-votes = []
+reasons = []
 
-if vel > 1.5 and acc > 0: 
-    score += weights["PHYSICS"]; votes.append("PHY: BUY")
-elif vel < -1.5 and acc < 0: 
-    score -= weights["PHYSICS"]; votes.append("PHY: SELL")
+# 1. Physics (Threshold lowered for Scalping)
+limit = 0.5 if aggro_mode else 1.5
+if vel > limit: 
+    score += 2
+    reasons.append(f"Vel +{vel:.2f}")
+elif vel < -limit: 
+    score -= 2
+    reasons.append(f"Vel {vel:.2f}")
 
-if future_price > live_price + 3 and mc_win > 60:
-    score += weights["FUTURE"]; votes.append("MATH: BUY")
-elif future_price < live_price - 3 and mc_win < 40:
-    score -= weights["FUTURE"]; votes.append("MATH: SELL")
+# 2. Acceleration (Momentum)
+if acc > 0.1: score += 1
+elif acc < -0.1: score -= 1
 
-if entropy > 1.8: score -= 5; votes.append("CHAOS: TRAP")
+# 3. Probability
+if win_prob > 60: score += 1
+elif win_prob < 40: score -= 1
 
+# Final Verdict
 decision = "WAIT"
-if score > 2.5: decision = "BUY CE 🚀"
-elif score < -2.5: decision = "BUY PE 🩸"
+color_cls = "neon-cyan"
 
-# --- 4. DISPLAY DASHBOARD ---
+if score >= 3:
+    decision = "BUY CE 🚀"
+    color_cls = "neon-green"
+elif score <= -3:
+    decision = "BUY PE 🩸"
+    color_cls = "neon-red"
+
+# E. UI DISPLAY (The Brahmastra Look)
+st.markdown(f"<h1 style='text-align:center; color:white;'>🦁 CM-X <span style='color:#00f3ff'>BRAHMASTRA</span></h1>", unsafe_allow_html=True)
+st.markdown(f"<p style='text-align:center; color:#aaa;'>{get_time().strftime('%H:%M:%S')} | {status}</p>", unsafe_allow_html=True)
+
+# Top Metrics
 m1, m2, m3, m4 = st.columns(4)
-with m1: st.markdown(f"<div class='holo-card'><small>PRICE</small><br><div class='metric-val text-cyan'>{live_price}</div></div>", unsafe_allow_html=True)
-with m2: st.markdown(f"<div class='holo-card'><small>VELOCITY</small><br><div class='metric-val text-green'>{vel:.2f}</div></div>", unsafe_allow_html=True)
-with m3: st.markdown(f"<div class='holo-card'><small>ENTROPY</small><br><div class='metric-val {'text-red' if entropy>1.8 else 'text-green'}'>{entropy:.2f}</div></div>", unsafe_allow_html=True)
-with m4: st.markdown(f"<div class='holo-card'><small>DECISION</small><br><div class='metric-val text-cyan'>{decision}</div></div>", unsafe_allow_html=True)
+m1.markdown(f"<div class='neon-card'><small>INDEX PRICE</small><br><div class='big-text neon-cyan'>{live_price}</div></div>", unsafe_allow_html=True)
+m2.markdown(f"<div class='neon-card'><small>VELOCITY</small><br><div class='big-text {('neon-green' if vel>0 else 'neon-red')}'>{vel:.2f}</div></div>", unsafe_allow_html=True)
+m3.markdown(f"<div class='neon-card'><small>WIN PROB</small><br><div class='big-text neon-cyan'>{win_prob:.0f}%</div></div>", unsafe_allow_html=True)
+m4.markdown(f"<div class='neon-card' style='border:2px solid {('#00ff00' if 'CE' in decision else ('#ff0000' if 'PE' in decision else '#00f3ff'))}'><small>SIGNAL</small><br><div class='big-text {color_cls}'>{decision}</div></div>", unsafe_allow_html=True)
 
-g1, g2 = st.columns([2, 1])
-with g1:
-    st.markdown("### 📈 QUANTUM CHART")
+# Chart & Logs
+c1, c2 = st.columns([2, 1])
+
+with c1:
+    st.markdown("### 📈 QUANTUM FLOW")
     fig = go.Figure()
-    fig.add_trace(go.Scatter(y=st.session_state.history[-30:], mode='lines', name='Price', line=dict(color='#00f3ff')))
-    fig.add_trace(go.Scatter(y=[kf_price]*30, mode='lines', name='Kalman', line=dict(color='yellow', dash='dot')))
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=250, margin=dict(l=0,r=0,t=0,b=0))
+    # Gradient Line Chart
+    fig.add_trace(go.Scatter(
+        y=st.session_state.history[-40:], 
+        mode='lines', 
+        name='Price',
+        line=dict(color='#00f3ff', width=3),
+        fill='tozeroy',
+        fillcolor='rgba(0, 243, 255, 0.1)'
+    ))
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)', 
+        plot_bgcolor='rgba(0,0,0,0)', 
+        font=dict(color='white'), 
+        height=300,
+        margin=dict(l=0, r=0, t=0, b=0),
+        xaxis=dict(showgrid=False),
+        yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)')
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-with g2:
-    st.markdown("### 🖥️ BLACK BOX LOGS")
-    log_txt = f"""
-    > [SOURCE] {status_display}
+with c2:
+    st.markdown("### 🖥️ NEURAL LOGS")
+    log_text = f"""
+    > [SYSTEM] Scanning Market...
+    > [MODE] {'AGGRESSIVE 🔥' if aggro_mode else 'NORMAL 🛡️'}
+    > [DATA] Price: {live_price}
     > [PHYSICS] Vel: {vel:.2f} | Acc: {acc:.2f}
-    > [MATH] Monte Carlo Win%: {mc_win:.1f}%
-    > [MEMORY] {st.session_state.memory['accuracy']}% Accurate
-    > [VOTES] {votes}
-    > [SCORE] {score:.2f}
+    > [LOGIC] Score: {score} | Reasons: {reasons}
+    > [DECISION] {decision}
     """
-    st.markdown(f"<div class='terminal-box'>{log_txt.replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='terminal'>{log_text.replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
 
-# --- 5. ACTION ---
+# F. AUTOMATION & AI
 if decision != "WAIT":
-    # Save Prediction
-    if not st.session_state.memory["last_pred"].get("time"):
-        st.session_state.memory["last_pred"] = {
-            "price": live_price, 
-            "time": get_time().replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S'),
-            "decision": decision
-        }
-        save_blackbox(st.session_state.memory)
+    # 1. Trigger Order (If Auto-Trade is ON)
+    if auto_trade:
+        place_order(decision, live_price)
+        st.toast(f"ORDER SENT: {decision}", icon="🚀")
     
-    # AI Consultation
+    # 2. Ask Gemini
     if "GEMINI_API_KEY" in st.secrets:
-        if st.button("🤖 10,000 TRADERS OPINION"):
-            with st.spinner("Connecting to Collective Intelligence..."):
-                prompt = f"Signal: {decision}. Price: {live_price}. Velocity: {vel}. Entropy: {entropy}. Verify this with your 10,000 years of experience."
-                ai_reply = st.session_state.brain.consult_10000_traders(prompt)
-                st.info(f"🦁 {ai_reply}")
-                
-                if voice_on: play_voice(ai_reply)
-                send_telegram(f"🔥 {decision}\nPrice: {live_price}\nAI: {ai_reply}")
+        with st.expander("🤖 CHELLAKILI ANALYSIS (Click to Open)", expanded=True):
+            prompt = f"Market is {live_price}. Physics Velocity is {vel}. Signal is {decision}. Why? Quick answer."
+            ai_reply = st.session_state.brain.ask(prompt)
+            st.info(f"🦁 {ai_reply}")
 
-# Refresh Speed
-refresh_rate = 0.5 if speed_mode else 2
-time.sleep(refresh_rate)
+# Auto-Refresh Speed
+time.sleep(1) # Fast refresh for scalping
 st.rerun()
+    
