@@ -65,7 +65,7 @@ try:
     UPSTOX_ACCESS_TOKEN = st.secrets["upstox"]["access_token"]
     GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
     genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-1.5-pro')
 except: 
     st.error("⚠️ SECRETS ERROR: Check .streamlit/secrets.toml")
     st.stop()
