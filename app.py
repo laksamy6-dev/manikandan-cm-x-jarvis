@@ -157,7 +157,7 @@ def get_live_data():
     if st.session_state.prices: return st.session_state.prices[-1]
     return 22100.00
 
-# --- 7. UI STYLING (High Visibility Day Mode) ---
+# --- 7. UI STYLING (Balanced Mode) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;800&display=swap');
