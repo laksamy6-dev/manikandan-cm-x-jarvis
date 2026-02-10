@@ -1,273 +1,241 @@
-import os
-import sys
-import subprocess
-import time
-import json
-import random
-from datetime import datetime
-
-# --- 1. SELF-HEALING & SETUP (தானியங்கி அமைப்பு) ---
-def install_and_import(package):
-    try:
-        __import__(package)
-    except ImportError:
-        print(f"🦁 JARVIS: Installing missing module -> {package}...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-# தேவையான லைப்ரரிகளை சரிபார்த்தல்
-required_libs = ["streamlit", "google-generativeai", "pandas", "numpy", "requests", "python-dotenv", "plotly", "watchdog"]
-for lib in required_libs:
-    install_and_import(lib)
-
-# --- IMPORTS ---
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
 import requests
 import google.generativeai as genai
-import plotly.graph_objects as go
-from dotenv import load_dotenv
+import time
+from datetime import datetime
+import pytz
+import json
+import os
+from gtts import gTTS
+import base64
+from collections import deque
 
-# --- 2. CREDENTIALS INJECTION (ரகசிய சாவி தானியங்கி உருவாக்கம்) ---
-# பாஸ், நீங்க கொடுத்த கீகளை நான் இங்கேயே வச்சிருக்கேன். 
-# இந்த ஃபைலை ரன் பண்ணும்போது, இதுவே .env ஃபைலை உருவாக்கிடும்.
-
-ENV_CONTENT = """
-UPSTOX_API_KEY=6463a56b-79e5-4c99-9b45-fe3db2878395
-UPSTOX_API_SECRET=9gws7n1uu2
-UPSTOX_REDIRECT_URI=https://localhost:8501
-UPSTOX_ACCESS_TOKEN=eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI0WkNDREwiLCJqdGkiOiI2OTg3NDQzNjY2MDFhZTA5MTkyMDM1M2YiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6dHJ1ZSwiaWF0IjoxNzcwNDcyNTAyLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NzA1MDE2MDB9.Qq76KVcVezgQmS5Dn9Pp_BGmyVoV7QVhrXZOVL0xJHU
-GEMINI_API_KEY=AIzaSyAu4IyoGJ2NN1n0_0y9BFRTSj8ZWfFUbVU
-TELEGRAM_BOT_TOKEN=8580047711:AAG8-WU5G3U0dWX0-CUwaLVnKAPT2Xzls2A
-TELEGRAM_CHAT_ID=8580047711
-OWNER_NAME=BOSS MANIKANDAN
-AI_NAME=JARVIS
-"""
-
-if not os.path.exists(".env"):
-    with open(".env", "w") as f:
-        f.write(ENV_CONTENT)
-    print("🦁 JARVIS: Security Vault (.env) Created Successfully!")
-
-load_dotenv()
-
-# --- 3. PAGE CONFIGURATION ---
+# --- 1. SYSTEM CONFIGURATION ---
 st.set_page_config(
-    page_title="CM-X JARVIS: WAR ROOM",
-    page_icon="🦁",
+    page_title="CM-X GOD MODE: BOSS EDITION",
     layout="wide",
+    page_icon="👑",
     initial_sidebar_state="collapsed"
 )
 
-# --- 4. CSS STYLING (HOLOGRAPHIC & FIRE THEME) ---
+# SYSTEM CONSTANTS
+MEMORY_FILE = "cm_x_aether_memory.json"
+MAX_HISTORY_LEN = 126 
+
+# --- 2. CSS STYLING (BOSS STYLE) ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+    .stApp { background-color: #000000; color: #00ff41; font-family: 'Orbitron', sans-serif; }
     
-    /* GLOBAL THEME */
-    .stApp { background-color: #000000; color: #00f3ff; font-family: 'Rajdhani', sans-serif; }
+    /* Metrics */
+    div[data-testid="stMetricValue"] { font-size: 24px; color: #00ff41; text-shadow: 0 0 5px #00ff41; }
+    div[data-testid="stMetricLabel"] { color: #888; }
     
-    /* FIRE TEXT EFFECT (BOSS NAME) */
-    .fire-text {
-        background: linear-gradient(to top, #ff0000, #ff8800, #ffff00);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-family: 'Orbitron', sans-serif;
-        font-weight: 900;
-        font-size: 2rem;
-        text-shadow: 0 0 10px rgba(255, 69, 0, 0.6);
-        animation: flicker 1.5s infinite alternate;
+    /* Approval Box */
+    .approval-box {
+        border: 2px solid #ffff00;
+        background-color: #333300;
+        color: #ffff00;
+        padding: 20px;
+        text-align: center;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        animation: flash 1s infinite;
     }
-    @keyframes flicker {
-        0% { opacity: 1; text-shadow: 0 0 10px red; }
-        100% { opacity: 0.8; text-shadow: 0 0 20px orange; }
-    }
-
-    /* HOLOGRAPHIC CARD */
-    .holo-card {
-        background: rgba(10, 20, 30, 0.85);
-        border: 1px solid rgba(0, 243, 255, 0.3);
-        box-shadow: 0 0 15px rgba(0, 243, 255, 0.1), inset 0 0 20px rgba(0, 243, 255, 0.05);
-        border-radius: 12px;
-        padding: 15px;
-        margin-bottom: 15px;
-        position: relative;
-        overflow: hidden;
-    }
-
-    /* METRICS */
-    .metric-value { font-size: 2.5rem; font-weight: bold; font-family: 'Orbitron', sans-serif; color: white; }
-    .metric-label { font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 2px; }
-
-    /* JARVIS BUTTON */
+    @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    
+    /* Buttons */
     .stButton>button {
-        background: linear-gradient(45deg, #00f3ff, #0066ff);
-        color: black;
-        font-family: 'Orbitron', sans-serif;
-        font-weight: 900;
-        border: none;
         width: 100%;
-        padding: 12px;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 0 20px #00f3ff;
-        color: white;
-    }
-    
-    /* INPUT FIELDS */
-    .stTextInput input {
-        background-color: rgba(0, 20, 40, 0.8) !important;
-        color: #00f3ff !important;
-        border: 1px solid #00f3ff !important;
-        font-family: 'Rajdhani', sans-serif;
+        font-weight: bold;
+        border-radius: 5px;
+        height: 50px;
     }
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# --- 5. INITIALIZE STATE (மூளை நினைவகம்) ---
-if 'price' not in st.session_state: st.session_state.price = 19500.0
-if 'vwap' not in st.session_state: st.session_state.vwap = 19500.0
-if 'history' not in st.session_state: 
-    st.session_state.history = pd.DataFrame(columns=['Time', 'Price', 'VWAP'])
-if 'velocity' not in st.session_state: st.session_state.velocity = 0.0
+# --- 3. CONFIG & SECRETS ---
+try:
+    if "general" in st.secrets: OWNER_NAME = st.secrets["general"]["owner"]
+    else: OWNER_NAME = "BOSS MANIKANDAN"
+    UPSTOX_ACCESS_TOKEN = st.secrets["upstox"]["access_token"]
+    GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
+    genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
+except: 
+    st.error("⚠️ SECRETS ERROR: Check .streamlit/secrets.toml")
+    st.stop()
 
-# --- 6. API HANDLERS (மூளை செயல்பாடுகள்) ---
-def send_telegram(message):
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    if token and chat_id:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        try:
-            requests.post(url, json={"chat_id": chat_id, "text": f"🦁 **JARVIS:** {message}", "parse_mode": "Markdown"}, timeout=2)
-        except: pass
+UPSTOX_URL = "https://api.upstox.com/v2/market-quote/ltp"
+REQ_INSTRUMENT_KEY = "NSE_INDEX|Nifty 50"
 
-def ask_gemini(query, context_data):
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key: return "API Key Error"
+# --- 4. MEMORY ---
+def init_brain():
+    if not os.path.exists(MEMORY_FILE):
+        return {"position": None, "pnl": 0.0, "orders": []}
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = f"Act as JARVIS for Boss Manikandan. Market Data: {context_data}. User asks: {query}. Keep it short, robotic, and cool."
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"Neural Link Error: {str(e)}"
+        with open(MEMORY_FILE, 'r') as f: return json.load(f)
+    except: return {"position": None, "pnl": 0.0, "orders": []}
 
-# --- 7. HEADER SECTION ---
-c1, c2 = st.columns([3, 1])
-with c1:
-    st.markdown("<h1>CM-X <span style='color:#00f3ff'>JARVIS</span> <span style='font-size:1rem; color:#64748b;'>V7.0</span></h1>", unsafe_allow_html=True)
-    st.markdown("<div class='fire-text'>CREATOR: BOSS MANIKANDAN</div>", unsafe_allow_html=True)
-with c2:
-    st.success("🟢 SYSTEM ONLINE")
-    if st.button("🔄 REFRESH SYSTEM"):
-        st.rerun()
+def save_brain(data):
+    with open(MEMORY_FILE, 'w') as f: json.dump(data, f)
 
-# --- 8. DASHBOARD GRID ---
-col_left, col_right = st.columns([2, 1])
+brain = init_brain()
 
-with col_left:
-    # --- VIDEO FEED (Custom HTML for Maximize) ---
-    st.markdown('<div class="holo-card">', unsafe_allow_html=True)
-    st.markdown("""
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; color:#00f3ff;">📡 LIVE OPTIC FEED</h3>
-            <span style="color:#ef4444; font-weight:bold; animation: pulse 1s infinite;">● LIVE</span>
-        </div>
-        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border: 2px solid #f59e0b; border-radius: 8px; margin-top: 10px;">
-            <iframe src="https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&mute=1&controls=1" 
-                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
-                    frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
-            </iframe>
-        </div>
-    """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+# Session State
+if 'prices' not in st.session_state: st.session_state.prices = deque(maxlen=MAX_HISTORY_LEN)
+if 'bot_active' not in st.session_state: st.session_state.bot_active = False
+if 'pending_signal' not in st.session_state: st.session_state.pending_signal = None
+if 'position' not in st.session_state: st.session_state.position = brain.get('position', None)
+if 'pnl' not in st.session_state: st.session_state.pnl = brain.get('pnl', 0.0)
 
-    # --- NEURAL CHART ---
-    st.markdown('<div class="holo-card">', unsafe_allow_html=True)
-    
-    # Simulation Logic
-    move = np.random.randint(-12, 18)
-    st.session_state.price += move
-    st.session_state.vwap = (st.session_state.vwap * 19 + st.session_state.price) / 20
-    st.session_state.velocity = move
-    
-    # Update History
-    now = datetime.now().strftime("%H:%M:%S")
-    new_df = pd.DataFrame({'Time': [now], 'Price': [st.session_state.price], 'VWAP': [st.session_state.vwap]})
-    st.session_state.history = pd.concat([st.session_state.history, new_df]).tail(50)
-    
-    # Plotly Chart
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=st.session_state.history['Time'], y=st.session_state.history['Price'], mode='lines', name='Price', line=dict(color='#00f3ff', width=3)))
-    fig.add_trace(go.Scatter(x=st.session_state.history['Time'], y=st.session_state.history['VWAP'], mode='lines', name='VWAP', line=dict(color='#ef4444', width=2, dash='dot')))
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#64748b'), margin=dict(l=0,r=0,t=0,b=0), height=300, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#1e293b'))
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+# --- 5. AUDIO (Voice Fix Attempt) ---
+def speak_aether(text):
+    try:
+        tts = gTTS(text=text, lang='en', tld='co.in')
+        filename = "alert.mp3"
+        tts.save(filename)
+        with open(filename, "rb") as f: b64 = base64.b64encode(f.read()).decode()
+        
+        # Hidden audio player with autoplay enabled
+        md = f"""
+            <audio autoplay="true" style="display:none;">
+            <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+            </audio>
+            """
+        st.markdown(md, unsafe_allow_html=True)
+    except: pass
 
-with col_right:
-    # --- METRICS PANEL ---
-    st.markdown('<div class="holo-card" style="text-align:center;">', unsafe_allow_html=True)
-    st.markdown("<div class='metric-label'>NIFTY 50 SPOT</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='metric-value'>{st.session_state.price:.2f}</div>", unsafe_allow_html=True)
-    
-    vel_color = "#10b981" if st.session_state.velocity > 0 else "#ef4444"
-    st.markdown(f"<div class='metric-label' style='margin-top:15px;'>VELOCITY</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='metric-value' style='color:{vel_color}; font-size:2rem;'>{st.session_state.velocity:.2f}</div>", unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+# --- 6. PHYSICS CORE ---
+def calculate_metrics(prices):
+    p = np.array(list(prices))
+    if len(p) < 10: return 0,0,0
+    v = np.diff(p)[-1]
+    a = np.diff(np.diff(p))[-1] if len(p) > 2 else 0
+    entropy = np.std(p[-10:])
+    return v, a, entropy
 
-    # --- JARVIS CONTROL ---
-    st.markdown('<div class="holo-card">', unsafe_allow_html=True)
-    st.markdown("### 🤖 JARVIS INTERFACE")
+# --- 7. DATA ---
+def get_live_data():
+    headers = {'Authorization': f'Bearer {UPSTOX_ACCESS_TOKEN}', 'Accept': 'application/json'}
+    try:
+        res = requests.get(UPSTOX_URL, headers=headers, params={'instrument_key': REQ_INSTRUMENT_KEY}, timeout=3)
+        if res.status_code == 200:
+            data = res.json()['data']
+            key = next((k for k in [REQ_INSTRUMENT_KEY, REQ_INSTRUMENT_KEY.replace('|', ':')] if k in data), list(data.keys())[0])
+            return float(data[key]['last_price'])
+    except: pass
+    return None
+
+# --- 8. UI LAYOUT ---
+st.markdown(f"<h1 style='text-align:center;'>👑 CM-X GOD MODE: {OWNER_NAME}</h1>", unsafe_allow_html=True)
+
+# Metrics Row
+c1, c2, c3, c4 = st.columns(4)
+price_ph = c1.empty()
+v_ph = c2.empty()
+a_ph = c3.empty()
+pnl_ph = c4.empty()
+
+# Chart
+chart_ph = st.empty()
+
+# Controls
+st.write("---")
+col_btn1, col_btn2 = st.columns(2)
+if col_btn1.button("🟢 START ENGINE"): 
+    st.session_state.bot_active = True
+    speak_aether("Engine Started Boss")
+if col_btn2.button("🔴 STOP ENGINE"): 
+    st.session_state.bot_active = False
+    st.session_state.pending_signal = None
+
+# --- 9. APPROVAL SECTION (The Boss Feature) ---
+approval_container = st.empty()
+
+# --- 10. MAIN LOOP ---
+if st.session_state.bot_active:
     
-    query = st.text_input("Command:", placeholder="e.g., Analyze Trend")
+    # 1. Fetch Data
+    price = get_live_data()
     
-    if st.button("ACTIVATE NEURAL LINK"):
-        if query:
-            with st.spinner("Processing..."):
-                response = ask_gemini(query, f"Price: {st.session_state.price}, Velocity: {st.session_state.velocity}")
-                st.success(f"🦁 **JARVIS:** {response}")
+    if price:
+        st.session_state.prices.append(price)
+        v, a, entropy = calculate_metrics(st.session_state.prices)
+        
+        # 2. Logic (Physics Brain)
+        signal = None
+        if not st.session_state.position:
+            if v > 1.5 and a > 0.5: signal = "BUY"
+            elif v < -1.5 and a < -0.5: signal = "SELL"
+        
+        # 3. Handle Pending Approval (BOSS PERMISSION)
+        if signal and not st.session_state.pending_signal:
+            st.session_state.pending_signal = {"type": signal, "price": price}
+            speak_aether(f"Boss! {signal} Signal Detected. Waiting for approval.")
+        
+        # 4. Display Approval Box if Signal exists
+        if st.session_state.pending_signal:
+            sig = st.session_state.pending_signal
+            with approval_container.container():
+                st.markdown(f"""
+                <div class="approval-box">
+                    <h2>⚠️ PERMISSION REQUIRED ⚠️</h2>
+                    <h3>SIGNAL: {sig['type']} @ {sig['price']}</h3>
+                    <p>Physics Velocity: {v:.2f} | Acceleration: {a:.2f}</p>
+                </div>
+                """, unsafe_allow_html=True)
                 
-                # Javascript Voice Output
-                js = f"""
-                <script>
-                    var msg = new SpeechSynthesisUtterance("{response.replace('"', '')}");
-                    var voices = window.speechSynthesis.getVoices();
-                    msg.voice = voices.find(v => v.name.includes("Google UK English Male")) || voices[0];
-                    msg.rate = 1.0; msg.pitch = 0.8;
-                    window.speechSynthesis.speak(msg);
-                </script>
-                """
-                st.components.v1.html(js, height=0)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+                ac1, ac2 = st.columns(2)
+                if ac1.button("✅ APPROVE TRADE", key="approve"):
+                    # EXECUTE TRADE
+                    st.session_state.position = {"type": sig['type'], "entry": sig['price'], "qty": 50}
+                    brain['position'] = st.session_state.position
+                    save_brain(brain)
+                    st.session_state.pending_signal = None # Clear signal
+                    speak_aether("Trade Executed Successfully.")
+                    st.rerun()
+                    
+                if ac2.button("❌ REJECT", key="reject"):
+                    st.session_state.pending_signal = None # Clear signal
+                    speak_aether("Trade Rejected.")
+                    st.rerun()
 
-# --- 9. APPROVAL SYSTEM (The Gatekeeper) ---
-signal = "WAIT"
-if st.session_state.velocity > 8: signal = "BUY CE 🚀"
-elif st.session_state.velocity < -8: signal = "BUY PE 🩸"
+        # 5. Exit Logic (Automatic)
+        if st.session_state.position:
+            pos = st.session_state.position
+            pnl = (price - pos['entry']) * 50 if pos['type'] == "BUY" else (pos['entry'] - price) * 50
+            
+            # Simple Target/SL
+            if pnl > 500 or pnl < -300:
+                st.session_state.pnl += pnl
+                brain['pnl'] = st.session_state.pnl
+                st.session_state.position = None
+                brain['position'] = None
+                save_brain(brain)
+                speak_aether("Position Closed.")
+                st.rerun()
 
-if signal != "WAIT":
-    st.markdown(f"""
-        <div style="background:#1e1e2e; border:2px solid #f59e0b; padding:20px; border-radius:15px; text-align:center; animation:pulse 1s infinite; margin-top:20px;">
-            <h2 style="color:#f59e0b; margin:0;">⚠️ TRADE DETECTED: {signal}</h2>
-            <p style="color:#aaa;">Reason: Neuro-Quantum Velocity Spike</p>
-        </div>
-        <style>@keyframes pulse {{ 0% {{ box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }} 70% {{ box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }} 100% {{ box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }} }}</style>
-    """, unsafe_allow_html=True)
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button(f"✅ APPROVE {signal}", use_container_width=True):
-            st.toast("Trade Executed Successfully!", icon="🚀")
-            send_telegram(f"Trade Executed: {signal} @ {st.session_state.price}")
-    with c2:
-        if st.button("❌ REJECT", use_container_width=True):
-            st.toast("Trade Rejected.", icon="🛑")
+        # 6. Update UI
+        price_ph.metric("NIFTY 50", f"{price:,.2f}")
+        v_ph.metric("VELOCITY", f"{v:.2f}")
+        a_ph.metric("ACCEL", f"{a:.2f}")
+        
+        pnl_color = "green" if st.session_state.pnl >= 0 else "red"
+        pnl_ph.markdown(f"<h3 style='color:{pnl_color}'>P&L: ₹{st.session_state.pnl:.2f}</h3>", unsafe_allow_html=True)
 
-# --- 10. AUTO REFRESH ---
-time.sleep(1)
-st.rerun()
+        # Chart
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(y=list(st.session_state.prices), mode='lines', line=dict(color='#00ff41')))
+        fig.update_layout(height=300, margin=dict(t=0, b=0, l=0, r=0), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)')
+        chart_ph.plotly_chart(fig, use_container_width=True)
+
+    # Loop Delay
+    time.sleep(1)
+    # Only rerun if NOT waiting for approval (to prevent button flicker)
+    if not st.session_state.pending_signal:
+        st.rerun()
