@@ -7,5 +7,7 @@ pytz
 gTTS
 plotly
 dotenv
-pip install dash dash-bootstrap-components pandas plotly numpy
-3.  பிறகு ரன் பண்ணுங்க: `python cm_x_genesis_dash.py`
+dash
+dash-bootstrap-components
+google-generativeai
+toml
