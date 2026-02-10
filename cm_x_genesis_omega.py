@@ -10,13 +10,13 @@ import pytz
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="CM-X OMEGA (REAL-TIME)",
+    page_title="CM-X OMEGA (LIVE)",
     layout="wide",
     page_icon="⚡",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CUSTOM CSS ---
+# --- 2. CUSTOM CSS (Light Theme) ---
 st.markdown("""
     <style>
     .stApp { background-color: #ffffff; color: #000000; }
@@ -46,14 +46,13 @@ except Exception as e:
 
 # UPSTOX API SETUP
 UPSTOX_URL = "https://api.upstox.com/v2/market-quote/ltp"
-# குறியீடு சரியாக இருக்க வேண்டும் (Case Sensitive)
-INSTRUMENT_KEY = "NSE_INDEX|Nifty 50"
+# Request Key (Pipe format)
+REQ_INSTRUMENT_KEY = "NSE_INDEX|Nifty 50"
 
-# --- 4. REAL DATA FETCHING (DEBUG MODE) ---
+# --- 4. REAL DATA FETCHING (SMART FIX) ---
 def get_real_market_data():
     """
-    உண்மையான மார்க்கெட் டேட்டாவை எடுக்கும். 
-    பிரச்சனை இருந்தால், எரர் மெசேஜ் கொடுக்கும்.
+    Handles both '|' and ':' separators in Upstox response.
     """
     if not UPSTOX_ACCESS_TOKEN: 
         return None, "NO TOKEN FOUND"
@@ -62,19 +61,37 @@ def get_real_market_data():
         'Authorization': f'Bearer {UPSTOX_ACCESS_TOKEN}',
         'Accept': 'application/json'
     }
-    params = {'instrument_key': INSTRUMENT_KEY}
+    params = {'instrument_key': REQ_INSTRUMENT_KEY}
     
     try:
         response = requests.get(UPSTOX_URL, headers=headers, params=params, timeout=3)
         
         if response.status_code == 200:
             data = response.json()
-            # சரியான டேட்டா வருகிறதா என சரிபார்த்தல்
-            if 'data' in data and INSTRUMENT_KEY in data['data']:
-                price = data['data'][INSTRUMENT_KEY]['last_price']
+            
+            if 'data' in data:
+                resp_data = data['data']
+                
+                # CASE 1: Check for "NSE_INDEX:Nifty 50" (Colon format)
+                colon_key = REQ_INSTRUMENT_KEY.replace('|', ':')
+                
+                # CASE 2: Check for "NSE_INDEX|Nifty 50" (Pipe format)
+                pipe_key = REQ_INSTRUMENT_KEY
+                
+                price = None
+                
+                if colon_key in resp_data:
+                    price = resp_data[colon_key]['last_price']
+                elif pipe_key in resp_data:
+                    price = resp_data[pipe_key]['last_price']
+                else:
+                    # Fallback: Take the first key available
+                    first_key = list(resp_data.keys())[0]
+                    price = resp_data[first_key]['last_price']
+                
                 return float(price), "CONNECTED"
             else:
-                return None, f"DATA ERROR: {data}"
+                return None, f"DATA STRUCTURE ERROR: {data}"
         elif response.status_code == 401:
             return None, "TOKEN EXPIRED (401)"
         else:
@@ -94,19 +111,18 @@ def calculate_physics(prices):
 
 def ask_jarvis(price, v, a):
     try:
-        prompt = f"Nifty 50 is at {price}. Velocity {v:.2f}. Trend analysis in 5 words?"
+        prompt = f"Analysis for Nifty 50 at {price}. V:{v:.2f}, A:{a:.2f}. Trend in 3 words?"
         response = model.generate_content(prompt)
         return response.text
-    except: return "AI SLEEPING..."
+    except: return "AI ANALYZING..."
 
 # --- 6. UI LAYOUT ---
 
-st.markdown(f"<h1 style='text-align:center;'>CM-X GENESIS: OMEGA (REAL)</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='text-align:center;'>CM-X GENESIS: OMEGA (LIVE)</h1>", unsafe_allow_html=True)
 
 # Session State
 if 'prices' not in st.session_state: st.session_state.prices = []
 if 'bot_running' not in st.session_state: st.session_state.bot_running = False
-if 'connection_status' not in st.session_state: st.session_state.connection_status = "WAITING..."
 
 # Status Indicator
 status_placeholder = st.empty()
@@ -119,58 +135,52 @@ chart_ph = st.empty()
 
 # Controls
 c1, c2 = st.columns(2)
-if c1.button("🔥 CONNECT TO LIVE MARKET"):
-    st.session_state.bot_running = True
-if c2.button("🛑 DISCONNECT"):
-    st.session_state.bot_running = False
+start = c1.button("🔥 CONNECT LIVE")
+stop = c2.button("🛑 DISCONNECT")
+
+if start: st.session_state.bot_running = True
+if stop: st.session_state.bot_running = False
 
 # --- 7. MAIN LOOP ---
 if st.session_state.bot_running:
     
-    # லூப் தொடங்குவதற்கு முன் டெஸ்ட் கால்
+    # Initial Check
     price, status = get_real_market_data()
-    st.session_state.connection_status = status
     
-    # Status Display
     if status == "CONNECTED":
-        status_placeholder.markdown(f'<div class="status-box connected">🟢 SYSTEM ONLINE | UPSTOX CONNECTED</div>', unsafe_allow_html=True)
+        status_placeholder.markdown(f'<div class="status-box connected">🟢 UPSTOX CONNECTED | DATA FLOWING</div>', unsafe_allow_html=True)
     else:
-        status_placeholder.markdown(f'<div class="status-box disconnected">🔴 CONNECTION FAILED: {status}</div>', unsafe_allow_html=True)
-        st.error(f"காரணம்: {status}. தயவுசெய்து புது டோக்கன் போடவும்!")
-        st.session_state.bot_running = False # Stop if error
-        st.stop()
+        status_placeholder.markdown(f'<div class="status-box disconnected">🔴 ERROR: {status}</div>', unsafe_allow_html=True)
+        # Don't stop immediately, try looping to see if it recovers or shows detailed error
+        if "TOKEN" in status:
+            st.stop()
 
-    # Loop Starts
+    # Loop
     while st.session_state.bot_running:
         
-        # 1. Fetch Real Data
         current_price, status = get_real_market_data()
         
         if current_price:
             st.session_state.prices.append(current_price)
             if len(st.session_state.prices) > 50: st.session_state.prices.pop(0)
             
-            # 2. Physics
             v, a, f = calculate_physics(st.session_state.prices)
             
-            # 3. AI (Every 10th tick to save quota)
             ai_insight = "..."
             if len(st.session_state.prices) % 10 == 0:
                 ai_insight = ask_jarvis(current_price, v, a)
             
-            # 4. Update UI
             price_ph.metric("NIFTY 50", f"₹{current_price:,.2f}", f"{v:.2f}")
             vel_ph.metric("VELOCITY", f"{v:.2f}")
-            ai_ph.metric("AI VIEW", ai_insight)
+            ai_ph.metric("AI BRAIN", ai_insight)
             
-            # 5. Chart
             fig = go.Figure()
             fig.add_trace(go.Scatter(y=st.session_state.prices, mode='lines', line=dict(color='#2563eb', width=2)))
-            fig.update_layout(height=400, margin=dict(l=0,r=0,t=0,b=0))
+            fig.update_layout(height=400, margin=dict(l=0,r=0,t=0,b=0), template="plotly_white")
             chart_ph.plotly_chart(fig, use_container_width=True)
             
         else:
             status_placeholder.markdown(f'<div class="status-box disconnected">🔴 SIGNAL LOST: {status}</div>', unsafe_allow_html=True)
-            break
+            time.sleep(2) # Wait before retry
             
         time.sleep(1)
