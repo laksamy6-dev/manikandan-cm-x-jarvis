@@ -157,7 +157,7 @@ def get_live_data():
     if st.session_state.prices: return st.session_state.prices[-1]
     return 22100.00
 
-# --- 3. SMOOTH UI STYLING (DIM & NEON) ---
+# --- 7. SMOOTH UI STYLING (DIM & NEON) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
