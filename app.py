@@ -157,29 +157,63 @@ def get_live_data():
     if st.session_state.prices: return st.session_state.prices[-1]
     return 22100.00
 
-# --- 7. UI STYLING (High Visibility Day Mode) ---
+# --- 3. SMOOTH UI STYLING (DIM & NEON) ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;800&display=swap');
-    .stApp { background-color: #fcfcfc; color: #000; font-family: 'Rajdhani', sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
     
-    /* Metrics */
-    div[data-testid="stMetric"] { background: #fff; border: 3px solid #000; box-shadow: 5px 5px 0 #000; color: #000; }
-    div[data-testid="stMetricValue"] { font-size: 30px; font-weight: 900; }
+    /* BACKGROUND: Dim Dark Blue-Grey (Not Black, Not Light) */
+    .stApp { 
+        background-color: #1e293b; 
+        color: #e2e8f0; 
+        font-family: 'Roboto Mono', monospace; 
+    }
     
-    /* Council */
-    .agent-card { background: #fff; border: 2px solid #000; padding: 10px; text-align: center; font-weight: 900; margin-bottom: 5px; }
-    .buy { background: #00ff00; } .sell { background: #ff3333; color: #fff; } .wait { background: #e0e0e0; color: #555; }
+    /* TEXT STYLES */
+    h1, h2, h3 { color: #f8fafc; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
     
-    /* Buttons */
-    .stButton>button { border: 3px solid #000; font-weight: 900; background: #fff; color: #000; height: 55px; width: 100%; box-shadow: 4px 4px 0 #000; }
-    .stButton>button:hover { background: #000; color: #fff; top:2px; left:2px; box-shadow: 2px 2px 0 #000; }
+    /* METRIC CARDS (Smooth Round) */
+    div[data-testid="stMetric"] {
+        background-color: #0f172a; /* Darker Inner Box */
+        border: 1px solid #334155;
+        border-radius: 15px; /* Rounded Corners */
+        padding: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
     
-    /* Approval Flash */
-    .approval-box { background: #ffcc00; border: 4px solid #000; padding: 15px; text-align: center; font-size: 22px; font-weight: 900; animation: flash 1s infinite; }
-    @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    div[data-testid="stMetricLabel"] { color: #94a3b8; font-size: 14px; font-weight: bold; }
+    div[data-testid="stMetricValue"] { color: #f1f5f9; font-size: 26px; font-weight: bold; }
+
+    /* NEON ACCENTS */
+    .neon-green { color: #4ade80; text-shadow: 0 0 8px #4ade80; font-weight:bold; }
+    .neon-red { color: #f87171; text-shadow: 0 0 8px #f87171; font-weight:bold; }
+    .neon-orange { color: #fbbf24; text-shadow: 0 0 8px #fbbf24; font-weight:bold; }
+
+    /* AGENT CARDS */
+    .agent-card {
+        background: #1e293b; border: 1px solid #475569; 
+        padding: 10px; text-align: center; border-radius: 12px;
+        font-size: 14px; color: white; margin-bottom: 5px;
+    }
+    
+    /* BUTTONS */
+    .stButton>button {
+        background: #334155; color: white; border: 1px solid #94a3b8;
+        border-radius: 8px; font-weight: bold; transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background: #475569; border-color: white;
+    }
+    
+    /* LOG BOX */
+    .log-box {
+        font-family: 'Courier New'; font-size: 12px;
+        background: #020617; color: #4ade80;
+        padding: 10px; border-radius: 8px; border: 1px solid #1e293b;
+        height: 200px; overflow-y: auto;
+    }
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # --- 8. LAYOUT DASHBOARD ---
 st.markdown("### 🧬 CM-X COGNITIVE AUTOMATON")
