@@ -157,29 +157,189 @@ def get_live_data():
     if st.session_state.prices: return st.session_state.prices[-1]
     return 22100.00
 
-# --- 7. UI STYLING (Dark System/Adaptive Mode) ---
+# --- 3. SMOOTH UI STYLING (DIM & NEON) ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;800&display=swap');
-    .stApp { background-color: #fcfcfc; color: #000; font-family: 'Rajdhani', sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
     
-    /* Metrics */
-    div[data-testid="stMetric"] { background: #fff; border: 3px solid #000; box-shadow: 5px 5px 0 #000; color: #000; }
-    div[data-testid="stMetricValue"] { font-size: 30px; font-weight: 900; }
+    /* BACKGROUND: Dim Dark Blue-Grey (Not Black, Not Light) */
+    .stApp { 
+        background-color: #1e293b; 
+        color: #e2e8f0; 
+        font-family: 'Roboto Mono', monospace; 
+    }
     
-    /* Council */
-    .agent-card { background: #F9FAFB; border: 2px solid #000; padding: 10px; text-align: center; font-weight: 900; margin-bottom: 5px; }
-    .buy { background: #00ff00; } .sell { background: #ff3333; color: #fff; } .wait { background: #e0e0e0; color: #555; }
+    /* TEXT STYLES */
+    h1, h2, h3 { color: #f8fafc; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
     
-    /* Buttons */
-    .stButton>button { border: 3px solid #000; font-weight: 900; background: #fff; color: #000; height: 55px; width: 100%; box-shadow: 4px 4px 0 #000; }
-    .stButton>button:hover { background: #000; color: #fff; top:2px; left:2px; box-shadow: 2px 2px 0 #000; }
+    /* METRIC CARDS (Smooth Round) */
+    div[data-testid="stMetric"] {
+        background-color: #0f172a; /* Darker Inner Box */
+        border: 1px solid #334155;
+        border-radius: 15px; /* Rounded Corners */
+        padding: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
     
-    /* Approval Flash */
-    .approval-box { background: #ffcc00; border: 4px solid #000; padding: 15px; text-align: center; font-size: 22px; font-weight: 900; animation: flash 1s infinite; }
-    @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    div[data-testid="stMetricLabel"] { color: #94a3b8; font-size: 14px; font-weight: bold; }
+    div[data-testid="stMetricValue"] { color: #f1f5f9; font-size: 26px; font-weight: bold; }
+
+    /* NEON ACCENTS */
+    .neon-green { color: #4ade80; text-shadow: 0 0 8px #4ade80; font-weight:bold; }
+    .neon-red { color: #f87171; text-shadow: 0 0 8px #f87171; font-weight:bold; }
+    .neon-orange { color: #fbbf24; text-shadow: 0 0 8px #fbbf24; font-weight:bold; }
+
+    /* AGENT CARDS */
+    .agent-card {
+        background: #1e293b; border: 1px solid #475569; 
+        padding: 10px; text-align: center; border-radius: 12px;
+        font-size: 14px; color: white; margin-bottom: 5px;
+    }
+    
+    /* BUTTONS */
+    .stButton>button {
+        background: #334155; color: white; border: 1px solid #94a3b8;
+        border-radius: 8px; font-weight: bold; transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background: #475569; border-color: white;
+    }
+    
+    /* LOG BOX */
+    .log-box {
+        font-family: 'Courier New'; font-size: 12px;
+        background: #020617; color: #4ade80;
+        padding: 10px; border-radius: 8px; border: 1px solid #1e293b;
+        height: 200px; overflow-y: auto;
+    }
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
+# --- 4. STATE ---
+if 'prices' not in st.session_state: st.session_state.prices = deque(maxlen=300)
+if 'bot_active' not in st.session_state: st.session_state.bot_active = False
+if 'logs' not in st.session_state: st.session_state.logs = deque(maxlen=15)
+
+def get_data():
+    if not UPSTOX_ACCESS_TOKEN: 
+        if st.session_state.prices: return st.session_state.prices[-1] + np.random.normal(0, 3)
+        return 22100.00
+    try:
+        headers = {'Authorization': f'Bearer {UPSTOX_ACCESS_TOKEN}', 'Accept': 'application/json'}
+        res = requests.get(UPSTOX_URL, headers=headers, params={'instrument_key': REQ_INSTRUMENT_KEY}, timeout=2)
+        if res.status_code == 200:
+            return float(res.json()['data'][list(res.json()['data'].keys())[0]]['last_price'])
+    except: pass
+    if st.session_state.prices: return st.session_state.prices[-1]
+    return 22100.00
+
+def add_log(msg):
+    ts = datetime.now().strftime("%H:%M:%S")
+    st.session_state.logs.appendleft(f"[{ts}] {msg}")
+
+# --- 5. LOGIC (Physics) ---
+def calc_physics(prices):
+    p = np.array(list(prices))
+    if len(p) < 5: return 0, 0, 0
+    v = np.diff(p)[-1]
+    a = np.diff(np.diff(p))[-1]
+    ent = np.std(p[-10:]) # Simple Entropy (Standard Deviation)
+    return v, a, ent
+
+# --- 6. UI LAYOUT ---
+st.markdown("<h2 style='text-align:center;'>🌊 CM-X SMOOTH OPERATOR</h2>", unsafe_allow_html=True)
+
+c1, c2 = st.columns([2, 1])
+
+# Left: Metrics & Chart
+with c1:
+    m1, m2, m3 = st.columns(3)
+    p_ph = m1.empty()
+    v_ph = m2.empty()
+    a_ph = m3.empty()
+    
+    chart_ph = st.empty()
+
+# Right: Council & Logs
+with c2:
+    st.markdown("##### 🧠 COUNCIL")
+    council_ph = st.empty()
+    
+    st.markdown("##### 📟 LOGS")
+    log_ph = st.empty()
+    
+    b1, b2 = st.columns(2)
+    start = b1.button("▶ START")
+    stop = b2.button("⏹ STOP")
+
+if start: st.session_state.bot_active = True
+if stop: st.session_state.bot_active = False
+
+# --- 7. LOOP ---
+if st.session_state.bot_active:
+    
+    # Data
+    price = get_data()
+    st.session_state.prices.append(price)
+    
+    # Physics
+    v, a, ent = calc_physics(st.session_state.prices)
+    
+    # Council Logic
+    votes = {"Physics": "WAIT", "Trend": "WAIT", "Chaos": "GO"}
+    
+    if v > 1.5: votes["Physics"] = "BUY"
+    elif v < -1.5: votes["Physics"] = "SELL"
+    
+    ma = np.mean(list(st.session_state.prices)[-20:]) if len(st.session_state.prices)>20 else price
+    if price > ma: votes["Trend"] = "BUY"
+    else: votes["Trend"] = "SELL"
+    
+    # Updates
+    p_ph.metric("NIFTY 50", f"{price:,.2f}")
+    
+    # Color Logic for Physics
+    v_col = "neon-green" if v > 0 else "neon-red"
+    v_ph.markdown(f"<div style='text-align:center; font-size:12px; color:#888'>VELOCITY</div><div class='{v_col}' style='text-align:center; font-size:24px;'>{v:.2f}</div>", unsafe_allow_html=True)
+    
+    a_col = "neon-green" if a > 0 else "neon-red"
+    a_ph.markdown(f"<div style='text-align:center; font-size:12px; color:#888'>ACCEL</div><div class='{a_col}' style='text-align:center; font-size:24px;'>{a:.2f}</div>", unsafe_allow_html=True)
+
+    # Chart
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=list(st.session_state.prices), mode='lines', line=dict(color='#38bdf8', width=2), fill='tozeroy', fillcolor='rgba(56, 189, 248, 0.1)'))
+    fig.update_layout(height=280, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#334155'))
+    chart_ph.plotly_chart(fig, use_container_width=True)
+    
+    # Council Cards
+    with council_ph.container():
+        def get_style(val):
+            if val == "BUY": return "border-color: #4ade80; color: #4ade80;"
+            if val == "SELL": return "border-color: #f87171; color: #f87171;"
+            return "border-color: #64748b; color: #64748b;"
+            
+        c_html = f"""
+        <div class='agent-card' style='{get_style(votes['Physics'])}'>PHYSICS: {votes['Physics']}</div>
+        <div class='agent-card' style='{get_style(votes['Trend'])}'>TREND: {votes['Trend']}</div>
+        """
+        st.markdown(c_html, unsafe_allow_html=True)
+
+    # Logs
+    if v > 2: add_log(f"High Velocity: {v:.2f}")
+    l_html = "<br>".join([l for l in st.session_state.logs])
+    log_ph.markdown(f"<div class='log-box'>{l_html}</div>", unsafe_allow_html=True)
+
+    # SLOW REFRESH (3 Seconds) -> No Shaking
+    time.sleep(3) 
+    st.rerun()
+மாற்றங்கள் என்ன?
+Background: Dim Dark Blue-Grey (#1e293b) - இது முழு கருப்பு இல்ல, கண்ணுக்கு இதமான நிறம்.
+
+ஆட்டம் இல்லை: time.sleep(3) வச்சிருக்கேன். இப்போ ஸ்க்ரீன் ஒவ்வொரு 3 செகண்டுக்கும் ஒருமுறைதான் மாறும். ஸ்மூத்தா இருக்கும்.
+
+வண்ணங்கள்: நீங்க கேட்ட மாதிரி "Bright Small White Letters" மற்றும் "Green/Red" நியான் கலர்ஸ் கொடுத்திருக்கேன்.
+
+ட்ரை பண்ணி பாருங்க பாஸ்! இதுதான் அந்த "Smooth Feel" கொடுக்கும். 🌊
 
 # --- 8. LAYOUT DASHBOARD ---
 st.markdown("### 🧬 CM-X COGNITIVE AUTOMATON")
@@ -408,4 +568,7 @@ if st.session_state.bot_active:
         fig.update_layout(height=350, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
         chart_ph.plotly_chart(fig, use_container_width=True)
         
-        time.sleep(1)
+    # SLOW REFRESH (3 Seconds) -> No Shaking
+      time.sleep(3) 
+       st.rerun()
+ 
