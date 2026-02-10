@@ -17,19 +17,19 @@ import random
 
 # --- 1. SYSTEM CONFIGURATION ---
 st.set_page_config(
-    page_title="AETHER: SINGULARITY (ULTIMATE)",
+    page_title="AETHER: FUSION GOD MODE",
     layout="wide",
     page_icon="🧬",
     initial_sidebar_state="collapsed"
 )
 
-# CONSTANTS
+# SYSTEM CONSTANTS
 MEMORY_FILE = "cm_x_aether_memory.json"
 MAX_HISTORY_LEN = 126 # 126-Period Momentum (Research Based)
 TELEGRAM_INTERVAL = 120 # 2 Minutes
 KILL_SWITCH_LOSS = -2000 
 
-# --- 2. ADVANCED PROFESSIONAL STYLING (LIGHT THEME) ---
+# --- 2. PROFESSIONAL LIGHT CSS (CLEAN & POWERFUL) ---
 st.markdown("""
     <style>
     /* Global Font & Colors */
@@ -152,7 +152,7 @@ def init_brain_memory():
 def save_brain(data):
     with open(MEMORY_FILE, 'w') as f: json.dump(data, f)
 
-# LOAD BRAIN
+# LOAD BRAIN IMMEDIATELY
 brain = init_brain_memory()
 
 # SESSION STATE SYNC (CRITICAL FOR RELOADS)
@@ -162,7 +162,8 @@ if 'last_tg_time' not in st.session_state: st.session_state.last_tg_time = time.
 if 'live_logs' not in st.session_state: st.session_state.live_logs = deque(maxlen=50)
 if 'audio_html' not in st.session_state: st.session_state.audio_html = ""
 
-# Restore State from File
+# Restore State from File (MEMORY RECALL)
+# This ensures if you refresh, the bot remembers the trade!
 if 'position' not in st.session_state: st.session_state.position = brain.get('position', None)
 if 'orders' not in st.session_state: st.session_state.orders = brain.get('orders', [])
 if 'pnl' not in st.session_state: st.session_state.pnl = brain.get('pnl', 0.0)
@@ -196,7 +197,7 @@ def speak_aether(text):
         st.session_state.audio_html = f'<audio autoplay><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
     except: pass
 
-# --- 7. ADVANCED MATH CORE (ROCKET + MONTE CARLO) ---
+# --- 7. ADVANCED MATH CORE (FUSION: ROCKET + PHYSICS) ---
 def rocket_formula(v, vol_current, vol_avg):
     if vol_avg == 0: vol_avg = 1
     mass_ratio = abs(vol_current / vol_avg)
@@ -205,8 +206,10 @@ def rocket_formula(v, vol_current, vol_avg):
     return thrust
 
 def monte_carlo_simulation(prices, num_sims=100, steps=10):
+    # Convert to list first to avoid deque issues
     p_array = np.array(list(prices))
     if len(p_array) < 20: return 0.5
+    
     last_price = p_array[-1]
     returns = np.diff(p_array) / p_array[:-1]
     mu = np.mean(returns)
@@ -224,23 +227,23 @@ def calculate_singularity_metrics(prices):
     p = np.array(list(prices))
     if len(p) < 10: return 0,0,0,0,0
     
-    # 1. Physics
+    # 1. Physics (Newton)
     v = np.diff(p)[-1]
     a = np.diff(np.diff(p))[-1] if len(p) > 2 else 0
     
-    # 2. Chaos
+    # 2. Chaos (Entropy)
     entropy = np.std(p[-10:])
     
     # 3. Rocket Thrust
     volatility = entropy if entropy > 0 else 1
     thrust = rocket_formula(v, volatility*1.5, volatility) 
     
-    # 4. Prediction
+    # 4. Prediction (Monte Carlo)
     prob = monte_carlo_simulation(prices)
     
     return v, a, entropy, thrust, prob
 
-# --- 8. AI CONSULTANT ---
+# --- 8. AI CONSULTANT (THE GHOST) ---
 def consult_ghost(price, v, a, t, p):
     try:
         prompt = f"Market: {price}, Thrust: {t:.2f}, WinProb: {p:.2f}. One line sci-fi trading advice?"
@@ -248,7 +251,7 @@ def consult_ghost(price, v, a, t, p):
         return res.text
     except: return "AI Recalibrating..."
 
-# --- 9. REAL DATA FETCH (SMART FIX) ---
+# --- 9. REAL DATA FETCH (SMART KEY FIX) ---
 def get_live_data():
     if not UPSTOX_ACCESS_TOKEN: return None
     headers = {'Authorization': f'Bearer {UPSTOX_ACCESS_TOKEN}', 'Accept': 'application/json'}
@@ -280,7 +283,7 @@ def update_learning_rate(result):
 # --- 11. DASHBOARD LAYOUT (UI) ---
 st.markdown(f"""
 <div style="text-align:center; padding-bottom: 10px; border-bottom: 2px solid #cbd5e1;">
-    <h1 style="margin-bottom: 5px;">AETHER: SINGULARITY MODE</h1>
+    <h1 style="margin-bottom: 5px;">AETHER: FUSION GOD MODE</h1>
     <p style="color:#486581; font-weight:bold;">OPERATOR: {OWNER_NAME} | BRAIN: ACTIVE | LEARNING RATE: {brain.get('learning_rate', 1.0):.2f}</p>
 </div>
 """, unsafe_allow_html=True)
@@ -294,12 +297,12 @@ if price_check:
 else:
     st.markdown('<div class="status-offline">🔴 CONNECTION LOST | CHECK TOKEN</div>', unsafe_allow_html=True)
 
-# Active Trade Warning
+# Active Trade Warning (Persistent)
 if st.session_state.position:
     pos = st.session_state.position
     st.markdown(f"""
     <div class="active-trade-box">
-        🔥 ACTIVE POSITION: {pos['type']} @ {pos['entry']} | QTY: {pos['qty']}
+        🔥 ACTIVE POSITION RESTORED: {pos['type']} @ {pos['entry']} | QTY: {pos['qty']}
     </div>
     """, unsafe_allow_html=True)
 
@@ -323,10 +326,11 @@ with g1:
 with g2:
     st.subheader("🧠 Control Deck")
     
-    if st.button("🔊 ASK GHOST"):
+    # GHOST BUTTON
+    if st.button("🔊 CONSULT AETHER"):
         if st.session_state.prices:
             p_curr = list(st.session_state.prices)[-1]
-            speak_aether(f"Market at {p_curr}. Analyzing quantum fields.")
+            speak_aether(f"Market at {p_curr}. Analyzing fields.")
             st.toast("Ghost Protocol Initiated")
 
     st.write("---")
@@ -347,7 +351,7 @@ with g2:
     else:
         st.success("SCANNING...")
 
-# --- 12. THE SINGULARITY LOOP (MAIN) ---
+# --- 12. THE MAIN LOOP ---
 if st.session_state.bot_active:
     
     if not price_check:
@@ -371,26 +375,34 @@ if st.session_state.bot_active:
         
         st.session_state.prices.append(price)
         
-        # 3. HYPER-CALCULATIONS
+        # 3. HYPER-CALCULATIONS (Fusion of ALL Theories)
         v, a, entropy, thrust, prob = calculate_singularity_metrics(st.session_state.prices)
         lr = brain.get("learning_rate", 1.0)
         
         # 4. DECISION LOGIC (FUSION)
         
-        # BUY
+        # BUY LOGIC: (Rocket + Monte Carlo + Physics + Entropy)
         if (prob > 0.6) and (thrust > 0.5) and (v > 1.0) and (entropy < 10):
             if not brain['position']:
                 brain['position'] = {"type": "BUY", "entry": price, "qty": 50}
-                save_brain(brain)
+                save_brain(brain) # Auto-Save
+                
+                # Update Session State Immediately
+                st.session_state.position = brain['position']
+                
                 speak_aether("Thrust Detected. Buying Call.")
                 add_log(f"BUY ORDER | P={prob:.2f}", "warn")
                 st.rerun()
         
-        # SELL
+        # SELL LOGIC
         elif (prob < 0.4) and (thrust < -0.5) and (v < -1.0) and (entropy < 10):
             if not brain['position']:
                 brain['position'] = {"type": "SELL", "entry": price, "qty": 50}
-                save_brain(brain)
+                save_brain(brain) # Auto-Save
+                
+                # Update Session State Immediately
+                st.session_state.position = brain['position']
+                
                 speak_aether("Negative Thrust. Selling Put.")
                 add_log(f"SELL ORDER | P={prob:.2f}", "warn")
                 st.rerun()
@@ -406,13 +418,17 @@ if st.session_state.bot_active:
             if pnl > target or pnl < stoploss:
                 res = "WIN" if pnl > 0 else "LOSS"
                 new_lr = update_learning_rate(res)
+                
                 brain['pnl'] += pnl
                 brain['position'] = None
                 brain['orders'].insert(0, f"{res} | P&L: {pnl:.0f}")
-                save_brain(brain)
+                save_brain(brain) # Auto-Save
                 
-                msg = f"Position Closed. {res}."
-                speak_aether(msg)
+                # Update Session State Immediately
+                st.session_state.position = None
+                st.session_state.pnl = brain['pnl']
+                
+                speak_aether(f"Position Closed. {res}.")
                 add_log(f"EXIT | P&L: {pnl}", "brain")
                 st.rerun()
 
