@@ -157,7 +157,7 @@ def get_live_data():
     if st.session_state.prices: return st.session_state.prices[-1]
     return 22100.00
 
-# --- 7. UI STYLING (Balanced Mode) ---
+# --- 7. UI STYLING (Dark System/Adaptive Mode) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;800&display=swap');
@@ -168,7 +168,7 @@ st.markdown("""
     div[data-testid="stMetricValue"] { font-size: 30px; font-weight: 900; }
     
     /* Council */
-    .agent-card { background: #fff; border: 2px solid #000; padding: 10px; text-align: center; font-weight: 900; margin-bottom: 5px; }
+    .agent-card { background: #F9FAFB; border: 2px solid #000; padding: 10px; text-align: center; font-weight: 900; margin-bottom: 5px; }
     .buy { background: #00ff00; } .sell { background: #ff3333; color: #fff; } .wait { background: #e0e0e0; color: #555; }
     
     /* Buttons */
