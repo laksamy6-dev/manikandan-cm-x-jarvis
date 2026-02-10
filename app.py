@@ -2,235 +2,383 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import requests
+import google.generativeai as genai
 import time
 from datetime import datetime
+import pytz
+import json
+import os
+from gtts import gTTS
+import base64
+from collections import deque
+import math
 import random
 
-# --- PAGE CONFIGURATION (COPYRIGHT PROTECTION) ---
+# --- 1. SYSTEM CONFIGURATION ---
 st.set_page_config(
-    page_title="CM-X GENESIS | BOSS MANIKANDAN",
+    page_title="AETHER: ULTIMATE SINGULARITY",
     layout="wide",
-    initial_sidebar_state="expanded",
-    page_icon="🚀"
+    page_icon="🧬",
+    initial_sidebar_state="collapsed"
 )
 
-# --- CUSTOM CSS FOR BRANDING & DARK THEME ---
+# CONSTANTS
+MEMORY_FILE = "cm_x_aether_memory.json"
+MAX_HISTORY_LEN = 126 
+TELEGRAM_INTERVAL = 120 # 2 Minutes Report
+KILL_SWITCH_LOSS = -2000 
+
+# --- 2. ADVANCED CSS (HOLOGRAPHIC THEME) ---
 st.markdown("""
     <style>
-    .main {
-        background-color: #0e1117;
-    }
-    .stApp {
-        background-color: #0e1117;
-        color: #00ff00;
-    }
-    /* Copyright Watermark */
-    .watermark {
-        position: fixed;
-        bottom: 10px;
-        right: 10px;
-        opacity: 0.5;
-        z-index: 99;
-        color: white;
-        font-size: 12px;
-    }
-    /* Header Branding */
-    .brand-header {
-        font-size: 40px;
-        font-weight: bold;
-        color: #00FFCC;
-        text-align: center;
-        text-shadow: 2px 2px 4px #000000;
-        border-bottom: 2px solid #00FFCC;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
-    }
-    .sub-brand {
-        font-size: 18px;
-        color: #ff4b4b;
-        text-align: center;
-        font-style: italic;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
+    
+    .stApp { background-color: #000000; color: #00e5ff; font-family: 'Rajdhani', sans-serif; }
+    
+    /* Holographic Text */
+    h1, h2, h3 { text-shadow: 0 0 10px #00e5ff; color: #fff; text-transform: uppercase; }
+    
+    /* Metrics */
     div[data-testid="stMetricValue"] {
-        font-size: 24px;
-        color: #00ff00;
+        font-size: 28px;
+        color: #00e5ff;
+        text-shadow: 0 0 8px #00e5ff;
+    }
+    div[data-testid="stMetricLabel"] { color: #888; font-weight: bold; }
+    div[data-testid="stMetric"] {
+        background: rgba(0, 20, 40, 0.8);
+        border: 1px solid #004466;
+        box-shadow: 0 0 15px rgba(0, 229, 255, 0.1);
+        backdrop-filter: blur(5px);
+    }
+    
+    /* Terminal Box */
+    .terminal-box {
+        font-family: 'Courier New', monospace;
+        background-color: #050505;
+        border: 1px solid #333;
+        color: #00ff41;
+        padding: 10px;
+        height: 250px;
+        overflow-y: auto;
+        font-size: 13px;
+        border-left: 3px solid #00ff41;
+    }
+    
+    /* Buttons */
+    .stButton>button {
+        background: linear-gradient(45deg, #000, #111);
+        color: #00e5ff;
+        border: 1px solid #00e5ff;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background: #00e5ff;
+        color: #000;
+        box-shadow: 0 0 20px #00e5ff;
     }
     </style>
-    <div class="watermark">© 2026 COPYRIGHT - BOSS MANIKANDAN - ALL RIGHTS RESERVED</div>
     """, unsafe_allow_html=True)
 
-# --- SIDEBAR IDENTITY ---
-with st.sidebar:
-    st.markdown("## 🛡️ SYSTEM IDENTITY")
-    st.info("**SYSTEM OWNER:** BOSS MANIKANDAN")
-    st.text(f"SERVER TIME: {datetime.now().strftime('%H:%M:%S')}")
-    st.markdown("---")
-    st.markdown("### 🤖 ENGINE STATUS")
-    st.success("PHYSICS CORE: **ONLINE**")
-    st.success("10,000 AGENTS: **ACTIVE**")
-    st.success("COPYRIGHT GUARD: **ENABLED**")
-    st.markdown("---")
-    st.markdown("### ⚙️ CONTROLS")
-    mode = st.radio("TRADING MODE", ["SIMULATION", "LIVE MARKET (API)"])
-    risk_level = st.slider("RISK FACTOR (Turbulence Tolerance)", 0.0, 1.0, 0.3)
-
-# --- HEADER SECTION ---
-st.markdown('<div class="brand-header">CM-X GENESIS: APTE</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-brand">Advanced Physics Trading Engine | Architect: BOSS MANIKANDAN</div>', unsafe_allow_html=True)
-st.markdown("---")
-
-# --- MOCK DATA GENERATOR (PHYSICS SIMULATION) ---
-# In a real scenario, this comes from Upstox API
-def get_physics_data():
-    # Simulate Price with Sine wave + Noise
-    t = time.time()
-    price = 22000 + 100 * np.sin(t/10) + np.random.normal(0, 5)
+# --- 3. SECRETS LOADING ---
+try:
+    if "general" in st.secrets: OWNER_NAME = st.secrets["general"]["owner"]
+    else: OWNER_NAME = "BOSS MANIKANDAN"
     
-    # Calculate Velocity (dP/dt)
-    velocity = 10 * np.cos(t/10) + np.random.normal(0, 2)
+    UPSTOX_ACCESS_TOKEN = st.secrets["upstox"]["access_token"]
+    GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
+    TELEGRAM_BOT_TOKEN = st.secrets["telegram"]["bot_token"]
+    TELEGRAM_CHAT_ID = st.secrets["telegram"]["chat_id"]
     
-    # Calculate Acceleration (d²P/dt²)
-    acceleration = -1 * np.sin(t/10) + np.random.normal(0, 0.5)
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-pro')
     
-    # Kinetic Energy (KE = 0.5 * m * v²) - Mass assumed constant for demo
-    mass = random.uniform(0.8, 1.2) # Volume factor
-    ke = 0.5 * mass * (velocity ** 2)
-    
-    # Rocket Fuel (Liquidity) - decreasing as price moves up fast
-    fuel = 100 - min(100, abs(velocity) * 5)
-    
-    return price, velocity, acceleration, ke, fuel
+except Exception as e:
+    st.error(f"⚠️ CORE FAILURE: Secrets Error - {e}")
+    st.stop()
 
-# --- MAIN DASHBOARD ---
-# Create placeholders for live updates
-col1, col2, col3, col4 = st.columns(4)
-chart_placeholder = st.empty()
-swarms_placeholder = st.empty()
+UPSTOX_URL = "https://api.upstox.com/v2/market-quote/ltp"
+REQ_INSTRUMENT_KEY = "NSE_INDEX|Nifty 50"
 
-# --- RUNNING THE ENGINE LOOP ---
-if st.button("🚀 ACTIVATE GENESIS ENGINE"):
-    st.toast("SYSTEM BOOTING... WELCOME BOSS MANIKANDAN", icon="🔥")
-    
-    # Simulate live data stream
-    history_price = []
-    history_velocity = []
-    
-    for _ in range(100): # Run for 100 ticks for demo
-        price, vel, acc, ke, fuel = get_physics_data()
-        
-        history_price.append(price)
-        history_velocity.append(vel)
-        if len(history_price) > 50:
-            history_price.pop(0)
-            history_velocity.pop(0)
+# --- 4. SELF-CORRECTING MEMORY ---
+def init_brain():
+    if not os.path.exists(MEMORY_FILE):
+        data = {
+            "position": None,
+            "orders": [],
+            "pnl": 0.0,
+            "learning_rate": 1.0, 
+            "win_streak": 0,
+            "loss_streak": 0,
+            "last_thought": "System Initialized."
+        }
+        with open(MEMORY_FILE, 'w') as f: json.dump(data, f)
+        return data
+    else:
+        try:
+            with open(MEMORY_FILE, 'r') as f: return json.load(f)
+        except: return {"position": None, "orders": [], "pnl": 0.0, "learning_rate": 1.0}
 
-        # --- 1. KEY METRICS DISPLAY ---
-        with col1:
-            st.metric(label="NIFTY 50 PRICE", value=f"₹{price:.2f}", delta=f"{vel:.2f} pts/s")
-        with col2:
-            st.metric(label="VELOCITY (v)", value=f"{vel:.2f} m/s", delta_color="off")
-        with col3:
-            st.metric(label="ACCELERATION (a)", value=f"{acc:.2f} m/s²", 
-                      delta="SPEEDING UP" if acc > 0 else "SLOWING DOWN")
-        with col4:
-            st.metric(label="KINETIC ENERGY (J)", value=f"{ke:.0f} kJ", 
-                      delta="HIGH IMPACT" if ke > 50 else "LOW ENERGY")
+def save_brain(data):
+    with open(MEMORY_FILE, 'w') as f: json.dump(data, f)
 
-        # --- 2. PHYSICS GAUGES (ROCKET & TURBULENCE) ---
-        fig_gauges = go.Figure()
+brain = init_brain()
 
-        # Rocket Fuel Gauge
-        fig_gauges.add_trace(go.Indicator(
-            mode = "gauge+number",
-            value = fuel,
-            domain = {'x': [0, 0.45], 'y': [0, 1]},
-            title = {'text': "ROCKET FUEL (Liquidity)"},
-            gauge = {'axis': {'range': [None, 100]},
-                     'bar': {'color': "red" if fuel < 20 else "#00FFCC"},
-                     'steps' : [{'range': [0, 20], 'color': "rgba(255, 0, 0, 0.3)"}]}
-        ))
+# Session Sync
+if 'prices' not in st.session_state: st.session_state.prices = deque(maxlen=MAX_HISTORY_LEN)
+if 'bot_active' not in st.session_state: st.session_state.bot_active = False
+if 'last_tg_time' not in st.session_state: st.session_state.last_tg_time = time.time()
+if 'live_logs' not in st.session_state: st.session_state.live_logs = deque(maxlen=30)
+if 'audio_html' not in st.session_state: st.session_state.audio_html = ""
 
-        # Acceleration/Momentum Gauge
-        fig_gauges.add_trace(go.Indicator(
-            mode = "gauge+number+delta",
-            value = acc,
-            domain = {'x': [0.55, 1], 'y': [0, 1]},
-            title = {'text': "MOMENTUM FORCE (F=ma)"},
-            gauge = {'axis': {'range': [-5, 5]},
-                     'bar': {'color': "#FFFF00"},
-                     'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': 4}}
-        ))
+# --- 5. LOGGING & TELEGRAM ---
+def add_log(msg, type="info"):
+    ts = datetime.now(pytz.timezone('Asia/Kolkata')).strftime("%H:%M:%S")
+    color = "#00ff41" # Green
+    if type == "warn": color = "#ffeb3b" # Yellow
+    if type == "danger": color = "#ff0000" # Red
+    if type == "brain": color = "#00e5ff" # Cyan
+    st.session_state.live_logs.appendleft(f"<span style='color:#888'>[{ts}]</span> <span style='color:{color}'>{msg}</span>")
 
-        fig_gauges.update_layout(
-            paper_bgcolor="#0e1117", 
-            font={'color': "white", 'family': "Courier New"},
-            height=250,
-            margin=dict(l=10, r=10, t=30, b=10)
-        )
-        
-        swarms_placeholder.plotly_chart(fig_gauges, use_container_width=True)
+def send_telegram_report(msg):
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        params = {"chat_id": TELEGRAM_CHAT_ID, "text": f"🧬 AETHER REPORT:\n{msg}"}
+        requests.get(url, params=params)
+    except: pass
 
-        # --- 3. PRICE CHART WITH PHYSICS VECTORS ---
-        fig_chart = go.Figure()
-        
-        # Price Line
-        fig_chart.add_trace(go.Scatter(
-            y=history_price, 
-            mode='lines', 
-            name='Price',
-            line=dict(color='#00FFCC', width=2)
-        ))
-        
-        # Velocity Overlay (Secondary Axis logic simulated by color intensity)
-        fig_chart.add_trace(go.Scatter(
-            y=[p - 10 for p in history_price], # Offset for visuals
-            mode='lines',
-            name='Velocity Trail',
-            line=dict(color='rgba(255, 255, 0, 0.5)', width=1, dash='dot')
-        ))
+# --- 6. AUDIO ENGINE (GHOST SPEAKER) ---
+# பாஸ்! இதுதான் நீங்க கேட்ட ஸ்பீக்கர் வசதி. இது இங்க பத்திரமா இருக்கு!
+def speak_aether(text):
+    try:
+        add_log(f"VOCALIZING: {text}", "brain")
+        tts = gTTS(text=text, lang='en', tld='co.in')
+        filename = "ghost.mp3"
+        tts.save(filename)
+        with open(filename, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        # Hidden Player
+        st.session_state.audio_html = f'<audio autoplay><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
+    except: pass
 
-        fig_chart.update_layout(
-            title=f"LIVE MARKET KINEMATICS | OWNER: BOSS MANIKANDAN",
-            xaxis_title="Time Ticks (t)",
-            yaxis_title="Price Level",
-            template="plotly_dark",
-            height=400,
-            showlegend=True
-        )
-        
-        chart_placeholder.plotly_chart(fig_chart, use_container_width=True)
-        
-        # --- 4. SWARM INTELLIGENCE CONSENSUS ---
-        # Simulated voting from 10,000 agents
-        buy_votes = 50 + (vel * 5) + (acc * 10)
-        buy_votes = max(0, min(100, buy_votes)) # Clamp between 0-100
-        sell_votes = 100 - buy_votes
-        
-        st.markdown(f"""
-        ### 🧠 10,000 AGENT CONSENSUS (SWARM MIND)
-        <div style="display: flex; align-items: center; justify-content: space-between; background-color: #222; padding: 10px; border-radius: 5px;">
-            <div style="width: {buy_votes}%; background-color: #00FF00; height: 20px; text-align: center; color: black; font-weight: bold;">BUY ({int(buy_votes)}%)</div>
-            <div style="width: {sell_votes}%; background-color: #FF0000; height: 20px; text-align: center; color: white; font-weight: bold;">SELL ({int(sell_votes)}%)</div>
-        </div>
-        <p style="text-align: center; color: gray; font-size: 10px;">DECISION ENGINE POWERED BY BOSS MANIKANDAN</p>
-        """, unsafe_allow_html=True)
-        
-        time.sleep(0.1) # Refresh rate
+# --- 7. ADVANCED MATH CORE ---
+def rocket_formula(v, vol_current, vol_avg):
+    if vol_avg == 0: vol_avg = 1
+    mass_ratio = vol_current / vol_avg
+    if mass_ratio <= 0: mass_ratio = 0.1
+    thrust = v * math.log(mass_ratio)
+    return thrust
 
-else:
-    st.info("👋 WAITING FOR BOSS MANIKANDAN TO ACTIVATE THE ENGINE...")
-    st.markdown("""
-    **SYSTEM READY.**
-    - API CONNECTION: **STANDBY**
-    - PHYSICS MODELS: **LOADED**
-    - COPYRIGHT PROTOCOLS: **ACTIVE**
-    """)
+def monte_carlo_simulation(prices, num_sims=100, steps=10):
+    if len(prices) < 20: return 0.5
+    last_price = prices[-1]
+    returns = np.diff(prices) / prices[:-1]
+    mu = np.mean(returns)
+    sigma = np.std(returns)
+    bullish_paths = 0
+    for _ in range(num_sims):
+        sim_price = last_price
+        for _ in range(steps):
+            shock = np.random.normal(mu, sigma)
+            sim_price = sim_price * (1 + shock)
+        if sim_price > last_price: bullish_paths += 1
+    return bullish_paths / num_sims
 
-# --- FOOTER ---
-st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: grey;">
-    DEVELOPED BY <b>BOSS MANIKANDAN</b> | KUMBAKONAM HQ | GENESIS APTE V1.0 <br>
-    <i>WARNING: UNAUTHORIZED COPYING OF THIS ALGORITHM IS STRICTLY PROHIBITED.</i>
+def calculate_singularity_metrics(prices):
+    if len(prices) < 10: return 0,0,0,0,0
+    p = np.array(prices)
+    v = np.diff(p)[-1]
+    a = np.diff(np.diff(p))[-1] if len(p) > 2 else 0
+    entropy = np.std(p[-10:])
+    volatility = entropy # Using entropy as volatility proxy
+    thrust = rocket_formula(v, volatility*1.5, volatility) 
+    prob = monte_carlo_simulation(prices)
+    return v, a, entropy, thrust, prob
+
+# --- 8. AI CONSULTANT ---
+def consult_ghost(price, v, a, t, p):
+    try:
+        prompt = f"Market: {price}, Thrust: {t:.2f}, WinProb: {p:.2f}. One line sci-fi advice?"
+        res = model.generate_content(prompt)
+        return res.text
+    except: return "Calculating..."
+
+# --- 9. DATA FETCH ---
+def get_live_data():
+    if not UPSTOX_ACCESS_TOKEN: return None
+    headers = {'Authorization': f'Bearer {UPSTOX_ACCESS_TOKEN}', 'Accept': 'application/json'}
+    try:
+        res = requests.get(UPSTOX_URL, headers=headers, params={'instrument_key': REQ_INSTRUMENT_KEY}, timeout=3)
+        if res.status_code == 200:
+            data = res.json()['data']
+            key = next((k for k in [REQ_INSTRUMENT_KEY, REQ_INSTRUMENT_KEY.replace('|', ':')] if k in data), list(data.keys())[0])
+            return float(data[key]['last_price'])
+    except: pass
+    return None
+
+# --- 10. LEARNING LOGIC ---
+def update_learning_rate(result):
+    lr = brain.get("learning_rate", 1.0)
+    if result == "WIN":
+        lr = min(1.5, lr + 0.1)
+        brain["win_streak"] = brain.get("win_streak", 0) + 1
+        brain["loss_streak"] = 0
+    else:
+        lr = max(0.5, lr - 0.2)
+        brain["loss_streak"] = brain.get("loss_streak", 0) + 1
+        brain["win_streak"] = 0
+    brain["learning_rate"] = lr
+    save_brain(brain)
+    return lr
+
+# --- 11. UI LAYOUT ---
+st.markdown(f"""
+<div style="text-align:center; margin-bottom: 20px;">
+    <h1>AETHER: SINGULARITY MODE</h1>
+    <p style="color:#00e5ff; letter-spacing:2px;">OPERATOR: {OWNER_NAME} | BRAIN: <b>EVOLVING</b> | LR: <b>{brain.get('learning_rate', 1.0):.2f}</b></p>
 </div>
 """, unsafe_allow_html=True)
+
+# Audio Injection
+st.markdown(st.session_state.audio_html, unsafe_allow_html=True)
+
+# Metrics
+c1, c2, c3, c4, c5 = st.columns(5)
+p_ph = c1.empty()
+v_ph = c2.empty()
+t_ph = c3.empty() # Rocket Thrust
+m_ph = c4.empty() # Monte Carlo
+e_ph = c5.empty() # Entropy
+
+# Main Grid
+g1, g2 = st.columns([2, 1])
+
+with g1:
+    st.subheader("📈 Quantum Probability Field")
+    chart_ph = st.empty()
+    st.subheader("🖥️ Neural Core Terminal")
+    log_ph = st.empty()
+
+with g2:
+    st.subheader("👻 Ghost Protocol")
+    
+    # MANUAL VOICE TRIGGER
+    if st.button("🔊 CONSULT AETHER"):
+        if st.session_state.prices:
+            p_c = st.session_state.prices[-1]
+            v, a, e, t, p = calculate_singularity_metrics(st.session_state.prices)
+            msg = consult_ghost(p_c, v, a, t, p)
+            speak_aether(msg)
+            st.toast(f"AETHER: {msg}", icon="👻")
+
+    st.write("---")
+    pnl_ph = st.empty()
+    
+    st.write("---")
+    c_start, c_stop = st.columns(2)
+    if c_start.button("🔥 ACTIVATE"):
+        st.session_state.bot_active = True
+        add_log("PROTOCOL STARTED.", "brain")
+    if c_stop.button("🛑 SHUTDOWN"):
+        st.session_state.bot_active = False
+        add_log("SYSTEM HALTED.", "danger")
+        
+    st.caption("Active Memory")
+    if brain['position']:
+        st.info(f"OPEN: {brain['position']['type']} @ {brain['position']['entry']}")
+    else:
+        st.success("SCANNING...")
+
+# --- 12. SINGULARITY LOOP ---
+if st.session_state.bot_active:
+    
+    price = get_live_data()
+    if not price:
+        st.error("DATALINK ERROR")
+        st.stop()
+        
+    while st.session_state.bot_active:
+        
+        # 1. LIVE DATA
+        price = get_live_data()
+        if not price:
+            time.sleep(1)
+            continue
+        
+        st.session_state.prices.append(price)
+        
+        # 2. METRICS (Rocket + Physics + Monte Carlo)
+        v, a, entropy, thrust, prob = calculate_singularity_metrics(st.session_state.prices)
+        lr = brain.get("learning_rate", 1.0)
+        
+        # 3. DECISION LOGIC (Combined)
+        # BUY
+        if (prob > 0.6) and (thrust > 0.5) and (v > 1.0) and (entropy < 10):
+            if not brain['position']:
+                brain['position'] = {"type": "BUY", "entry": price, "qty": 50}
+                save_brain(brain)
+                speak_aether("Rocket Thrust Detected. Probability High. Buying.")
+                add_log(f"BUY | P={prob:.2f} T={thrust:.2f}", "warn")
+                st.rerun()
+        
+        # SELL
+        elif (prob < 0.4) and (thrust < -0.5) and (v < -1.0) and (entropy < 10):
+            if not brain['position']:
+                brain['position'] = {"type": "SELL", "entry": price, "qty": 50}
+                save_brain(brain)
+                speak_aether("Downward Thrust Detected. Selling.")
+                add_log(f"SELL | P={prob:.2f} T={thrust:.2f}", "warn")
+                st.rerun()
+                
+        # EXIT
+        if brain['position']:
+            pos = brain['position']
+            pnl = (price - pos['entry']) * 50 if pos['type'] == "BUY" else (pos['entry'] - price) * 50
+            target = 500 * lr
+            stoploss = -250 * (1/lr)
+            
+            if pnl > target or pnl < stoploss:
+                res = "WIN" if pnl > 0 else "LOSS"
+                new_lr = update_learning_rate(res)
+                brain['pnl'] += pnl
+                brain['position'] = None
+                brain['orders'].insert(0, f"{res} | P&L: {pnl:.0f}")
+                save_brain(brain)
+                speak_aether(f"Trade Closed. Result: {res}.")
+                add_log(f"EXIT. P&L: {pnl}. New LR: {new_lr:.2f}", "brain")
+                st.rerun()
+
+        # 4. TELEGRAM AUTO-REPORT (2 Mins)
+        if time.time() - st.session_state.last_tg_time > TELEGRAM_INTERVAL:
+            report = f"⏰ {datetime.now().strftime('%H:%M')}\n💰 NIFTY: {price}\n🚀 THRUST: {thrust:.2f}\n🎲 PROB: {prob*100:.0f}%\n💵 P&L: {brain['pnl']:.2f}"
+            send_telegram_report(report)
+            st.session_state.last_tg_time = time.time()
+            add_log("TELEGRAM REPORT SENT", "info")
+
+        # 5. UI UPDATE
+        p_ph.metric("NIFTY 50", f"{price:,.2f}")
+        v_ph.metric("VELOCITY", f"{v:.2f}")
+        t_ph.metric("THRUST", f"{thrust:.2f}")
+        m_ph.metric("PROBABILITY", f"{prob*100:.0f}%")
+        e_ph.metric("CHAOS", f"{entropy:.2f}")
+        
+        # P&L
+        total = brain['pnl'] + (pnl if brain['position'] else 0)
+        col = "#00ff41" if total >= 0 else "#ff0000"
+        pnl_ph.markdown(f"<h1 style='color:{col}; text-align:center;'>₹{total:.2f}</h1>", unsafe_allow_html=True)
+        
+        # Logs
+        log_html = "".join([f"<div>{l}</div>" for l in st.session_state.live_logs])
+        log_ph.markdown(f'<div class="terminal-box">{log_html}</div>', unsafe_allow_html=True)
+        
+        # Chart
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(y=list(st.session_state.prices), mode='lines', line=dict(color='#00e5ff', width=2), fill='tozeroy', fillcolor='rgba(0, 229, 255, 0.1)'))
+        if brain['position']:
+            fig.add_hline(y=brain['position']['entry'], line_dash="dash", line_color="orange")
+        fig.update_layout(height=350, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        chart_ph.plotly_chart(fig, use_container_width=True)
+        
+        time.sleep(1)
