@@ -1,15 +1,57 @@
+import os
+import sys
+import subprocess
+import time
+import json
+import random
+from datetime import datetime
+
+# --- 1. SELF-HEALING & SETUP (தானியங்கி அமைப்பு) ---
+def install_and_import(package):
+    try:
+        __import__(package)
+    except ImportError:
+        print(f"🦁 JARVIS: Installing missing module -> {package}...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# தேவையான லைப்ரரிகளை சரிபார்த்தல்
+required_libs = ["streamlit", "google-generativeai", "pandas", "numpy", "requests", "python-dotenv", "plotly", "watchdog"]
+for lib in required_libs:
+    install_and_import(lib)
+
+# --- IMPORTS ---
 import streamlit as st
 import pandas as pd
 import numpy as np
-import time
 import requests
-import json
 import google.generativeai as genai
 import plotly.graph_objects as go
-import hmac
-from datetime import datetime
+from dotenv import load_dotenv
 
-# --- 1. CONFIGURATION ---
+# --- 2. CREDENTIALS INJECTION (ரகசிய சாவி தானியங்கி உருவாக்கம்) ---
+# பாஸ், நீங்க கொடுத்த கீகளை நான் இங்கேயே வச்சிருக்கேன். 
+# இந்த ஃபைலை ரன் பண்ணும்போது, இதுவே .env ஃபைலை உருவாக்கிடும்.
+
+ENV_CONTENT = """
+UPSTOX_API_KEY=6463a56b-79e5-4c99-9b45-fe3db2878395
+UPSTOX_API_SECRET=9gws7n1uu2
+UPSTOX_REDIRECT_URI=https://localhost:8501
+UPSTOX_ACCESS_TOKEN=eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI0WkNDREwiLCJqdGkiOiI2OTg3NDQzNjY2MDFhZTA5MTkyMDM1M2YiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6dHJ1ZSwiaWF0IjoxNzcwNDcyNTAyLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NzA1MDE2MDB9.Qq76KVcVezgQmS5Dn9Pp_BGmyVoV7QVhrXZOVL0xJHU
+GEMINI_API_KEY=AIzaSyAu4IyoGJ2NN1n0_0y9BFRTSj8ZWfFUbVU
+TELEGRAM_BOT_TOKEN=8580047711:AAG8-WU5G3U0dWX0-CUwaLVnKAPT2Xzls2A
+TELEGRAM_CHAT_ID=8580047711
+OWNER_NAME=BOSS MANIKANDAN
+AI_NAME=JARVIS
+"""
+
+if not os.path.exists(".env"):
+    with open(".env", "w") as f:
+        f.write(ENV_CONTENT)
+    print("🦁 JARVIS: Security Vault (.env) Created Successfully!")
+
+load_dotenv()
+
+# --- 3. PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="CM-X JARVIS: WAR ROOM",
     page_icon="🦁",
@@ -17,88 +59,57 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. SECURITY LOCK (பாதுகாப்பு) ---
-def check_password():
-    """Returns `True` if the user had the correct password."""
-    def password_entered():
-        # டீஃபால்ட் பாஸ்வேர்ட்: "boss"
-        correct_password = st.secrets.get("system", {}).get("admin_password", "boss")
-        if hmac.compare_digest(st.session_state["password"], correct_password):
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
-    if st.session_state.get("password_correct", False):
-        return True
-
-    # Login UI
-    st.markdown("""
-        <style>
-        .stApp { background-color: #000000; color: #00f3ff; }
-        .login-box { border: 2px solid #00f3ff; padding: 40px; border-radius: 15px; text-align: center; box-shadow: 0 0 20px rgba(0, 243, 255, 0.3); max-width: 400px; margin: 100px auto; }
-        .stTextInput input { color: #00f3ff !important; background-color: #111 !important; border: 1px solid #00f3ff !important; }
-        </style>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<div class='login-box'><h1>🦁 ACCESS DENIED</h1><p>IDENTIFY YOURSELF</p></div>", unsafe_allow_html=True)
-    st.text_input("ENTER ACCESS CODE:", type="password", key="password", on_change=password_entered)
-    
-    if "password_correct" in st.session_state and not st.session_state["password_correct"]:
-        st.error("⛔ ACCESS DENIED: தவறான கடவுச்சொல்!")
-        
-    return False
-
-if not check_password():
-    st.stop()
-
-# --- 3. UI THEME (SHADOW EMPEROR) ---
+# --- 4. CSS STYLING (HOLOGRAPHIC & FIRE THEME) ---
 st.markdown("""
     <style>
-    /* Global Theme */
-    .stApp { background-color: #02040a; color: #e2e8f0; }
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap');
     
-    /* Fire Text */
+    /* GLOBAL THEME */
+    .stApp { background-color: #000000; color: #00f3ff; font-family: 'Rajdhani', sans-serif; }
+    
+    /* FIRE TEXT EFFECT (BOSS NAME) */
     .fire-text {
         background: linear-gradient(to top, #ff0000, #ff8800, #ffff00);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        font-family: 'Orbitron', sans-serif;
         font-weight: 900;
-        font-size: 1.8rem;
+        font-size: 2rem;
         text-shadow: 0 0 10px rgba(255, 69, 0, 0.6);
         animation: flicker 1.5s infinite alternate;
-        font-family: 'Orbitron', sans-serif;
     }
     @keyframes flicker {
         0% { opacity: 1; text-shadow: 0 0 10px red; }
         100% { opacity: 0.8; text-shadow: 0 0 20px orange; }
     }
 
-    /* Holographic Cards */
+    /* HOLOGRAPHIC CARD */
     .holo-card {
-        background: rgba(10, 20, 35, 0.85);
+        background: rgba(10, 20, 30, 0.85);
         border: 1px solid rgba(0, 243, 255, 0.3);
-        box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+        box-shadow: 0 0 15px rgba(0, 243, 255, 0.1), inset 0 0 20px rgba(0, 243, 255, 0.05);
         border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
-        color: #00f3ff;
+        padding: 15px;
+        margin-bottom: 15px;
+        position: relative;
+        overflow: hidden;
     }
 
-    /* Metrics */
-    .metric-val { font-size: 2.5rem; font-weight: bold; font-family: monospace; color: white; }
-    .metric-lbl { font-size: 0.9rem; color: #64748b; text-transform: uppercase; letter-spacing: 2px; }
+    /* METRICS */
+    .metric-value { font-size: 2.5rem; font-weight: bold; font-family: 'Orbitron', sans-serif; color: white; }
+    .metric-label { font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 2px; }
 
-    /* Buttons */
+    /* JARVIS BUTTON */
     .stButton>button {
         background: linear-gradient(45deg, #00f3ff, #0066ff);
         color: black;
-        font-weight: bold;
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 900;
         border: none;
         width: 100%;
-        transition: all 0.3s;
+        padding: 12px;
         border-radius: 8px;
-        padding: 10px;
+        transition: all 0.3s ease;
     }
     .stButton>button:hover {
         transform: scale(1.02);
@@ -106,182 +117,157 @@ st.markdown("""
         color: white;
     }
     
-    /* Chat Input */
+    /* INPUT FIELDS */
     .stTextInput input {
-        background-color: rgba(0,0,0,0.5) !important;
+        background-color: rgba(0, 20, 40, 0.8) !important;
         color: #00f3ff !important;
-        border: 1px solid #0044ff !important;
+        border: 1px solid #00f3ff !important;
+        font-family: 'Rajdhani', sans-serif;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. SECRETS LOADING (Cloud Safe) ---
-# Streamlit Cloud uses st.secrets to store keys securely
-try:
-    UPSTOX_KEY = st.secrets["api_keys"]["Upstox_api_key"]
-    GEMINI_KEY = st.secrets["api_keys"]["Gemini_api_key"]
-    TELEGRAM_TOKEN = st.secrets["api_keys"]["Telegram_bot_token"]
-    CHAT_ID = st.secrets["api_keys"]["Telegram_chat_id"]
-except:
-    # Fallback for local testing if secrets.toml is missing
-    GEMINI_KEY = "" # Will prompt user
-    TELEGRAM_TOKEN = ""
-    CHAT_ID = ""
+# --- 5. INITIALIZE STATE (மூளை நினைவகம்) ---
+if 'price' not in st.session_state: st.session_state.price = 19500.0
+if 'vwap' not in st.session_state: st.session_state.vwap = 19500.0
+if 'history' not in st.session_state: 
+    st.session_state.history = pd.DataFrame(columns=['Time', 'Price', 'VWAP'])
+if 'velocity' not in st.session_state: st.session_state.velocity = 0.0
 
-# --- 5. TELEGRAM ALERT SYSTEM ---
+# --- 6. API HANDLERS (மூளை செயல்பாடுகள்) ---
 def send_telegram(message):
-    if TELEGRAM_TOKEN and CHAT_ID:
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        payload = {"chat_id": CHAT_ID, "text": f"🦁 **JARVIS:** {message}", "parse_mode": "Markdown"}
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if token and chat_id:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
         try:
-            requests.post(url, json=payload, timeout=2)
-        except:
-            pass
+            requests.post(url, json={"chat_id": chat_id, "text": f"🦁 **JARVIS:** {message}", "parse_mode": "Markdown"}, timeout=2)
+        except: pass
 
-# --- 6. HEADER & IDENTITY ---
+def ask_gemini(query, context_data):
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key: return "API Key Error"
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"Act as JARVIS for Boss Manikandan. Market Data: {context_data}. User asks: {query}. Keep it short, robotic, and cool."
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Neural Link Error: {str(e)}"
+
+# --- 7. HEADER SECTION ---
 c1, c2 = st.columns([3, 1])
 with c1:
-    st.markdown("<h1>CM-X <span style='color:#00f3ff'>JARVIS</span></h1>", unsafe_allow_html=True)
-    st.markdown("<h3 class='fire-text'>CREATOR: BOSS MANIKANDAN</h3>", unsafe_allow_html=True)
+    st.markdown("<h1>CM-X <span style='color:#00f3ff'>JARVIS</span> <span style='font-size:1rem; color:#64748b;'>V7.0</span></h1>", unsafe_allow_html=True)
+    st.markdown("<div class='fire-text'>CREATOR: BOSS MANIKANDAN</div>", unsafe_allow_html=True)
 with c2:
     st.success("🟢 SYSTEM ONLINE")
     if st.button("🔄 REFRESH SYSTEM"):
         st.rerun()
 
-# --- 7. MAIN DASHBOARD ---
+# --- 8. DASHBOARD GRID ---
 col_left, col_right = st.columns([2, 1])
 
-# Initialize State
-if 'price' not in st.session_state: st.session_state.price = 19500.0
-if 'vwap' not in st.session_state: st.session_state.vwap = 19500.0
-if 'history' not in st.session_state: 
-    st.session_state.history = pd.DataFrame(columns=['Time', 'Price', 'VWAP'])
-
 with col_left:
-    # --- VIDEO FEED (Maximize Button Included in Streamlit Video) ---
+    # --- VIDEO FEED (Custom HTML for Maximize) ---
     st.markdown('<div class="holo-card">', unsafe_allow_html=True)
-    st.markdown("### 📡 LIVE MARKET FEED")
-    # This URL is a placeholder. Replace with your trading view stream link or keep for demo.
-    st.video("https://www.w3schools.com/html/mov_bbb.mp4", format="video/mp4", start_time=0)
-    st.caption("Secure Feed: Upstox Data Stream")
+    st.markdown("""
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; color:#00f3ff;">📡 LIVE OPTIC FEED</h3>
+            <span style="color:#ef4444; font-weight:bold; animation: pulse 1s infinite;">● LIVE</span>
+        </div>
+        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border: 2px solid #f59e0b; border-radius: 8px; margin-top: 10px;">
+            <iframe src="https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&mute=1&controls=1" 
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+                    frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+            </iframe>
+        </div>
+    """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- LIVE NEURAL CHART ---
+    # --- NEURAL CHART ---
     st.markdown('<div class="holo-card">', unsafe_allow_html=True)
-    st.markdown("### 📈 NEURAL SCANNER")
     
-    # Simulate Data Logic (Brain Simulation)
+    # Simulation Logic
     move = np.random.randint(-12, 18)
     st.session_state.price += move
     st.session_state.vwap = (st.session_state.vwap * 19 + st.session_state.price) / 20
+    st.session_state.velocity = move
     
-    # History Update
-    new_row = pd.DataFrame({
-        'Time': [datetime.now().strftime("%H:%M:%S")], 
-        'Price': [st.session_state.price], 
-        'VWAP': [st.session_state.vwap]
-    })
-    st.session_state.history = pd.concat([st.session_state.history, new_row]).tail(60)
-
+    # Update History
+    now = datetime.now().strftime("%H:%M:%S")
+    new_df = pd.DataFrame({'Time': [now], 'Price': [st.session_state.price], 'VWAP': [st.session_state.vwap]})
+    st.session_state.history = pd.concat([st.session_state.history, new_df]).tail(50)
+    
     # Plotly Chart
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=st.session_state.history['Time'], y=st.session_state.history['Price'], 
-                             mode='lines', name='Price', line=dict(color='#00f3ff', width=3)))
-    fig.add_trace(go.Scatter(x=st.session_state.history['Time'], y=st.session_state.history['VWAP'], 
-                             mode='lines', name='VWAP', line=dict(color='#ef4444', width=2, dash='dot')))
-    
-    fig.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)', 
-        plot_bgcolor='rgba(0,0,0,0)', 
-        font=dict(color='#64748b'),
-        margin=dict(l=0, r=0, t=30, b=0),
-        height=350,
-        xaxis=dict(showgrid=False),
-        yaxis=dict(showgrid=True, gridcolor='#1e293b')
-    )
+    fig.add_trace(go.Scatter(x=st.session_state.history['Time'], y=st.session_state.history['Price'], mode='lines', name='Price', line=dict(color='#00f3ff', width=3)))
+    fig.add_trace(go.Scatter(x=st.session_state.history['Time'], y=st.session_state.history['VWAP'], mode='lines', name='VWAP', line=dict(color='#ef4444', width=2, dash='dot')))
+    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#64748b'), margin=dict(l=0,r=0,t=0,b=0), height=300, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#1e293b'))
     st.plotly_chart(fig, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col_right:
     # --- METRICS PANEL ---
     st.markdown('<div class="holo-card" style="text-align:center;">', unsafe_allow_html=True)
-    st.markdown("<span class='metric-lbl'>NIFTY 50 SPOT</span>", unsafe_allow_html=True)
-    st.markdown(f"<div class='metric-val'>{st.session_state.price:.2f}</div>", unsafe_allow_html=True)
+    st.markdown("<div class='metric-label'>NIFTY 50 SPOT</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='metric-value'>{st.session_state.price:.2f}</div>", unsafe_allow_html=True)
     
-    velocity = move
-    vel_color = "#10b981" if velocity > 0 else "#ef4444"
-    st.markdown(f"<br><span class='metric-lbl'>VELOCITY</span><br><span style='color:{vel_color}; font-size:1.5rem; font-weight:bold;'>{velocity:.2f}</span>", unsafe_allow_html=True)
+    vel_color = "#10b981" if st.session_state.velocity > 0 else "#ef4444"
+    st.markdown(f"<div class='metric-label' style='margin-top:15px;'>VELOCITY</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='metric-value' style='color:{vel_color}; font-size:2rem;'>{st.session_state.velocity:.2f}</div>", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- JARVIS AI CHAT ---
+    # --- JARVIS CONTROL ---
     st.markdown('<div class="holo-card">', unsafe_allow_html=True)
-    st.subheader("🤖 ASK JARVIS")
+    st.markdown("### 🤖 JARVIS INTERFACE")
     
-    # If no secrets, ask for key
-    if not GEMINI_KEY:
-        GEMINI_KEY = st.text_input("🔑 API Key Required:", type="password")
-    
-    user_query = st.text_input("Command:", placeholder="e.g. Trend Status")
+    query = st.text_input("Command:", placeholder="e.g., Analyze Trend")
     
     if st.button("ACTIVATE NEURAL LINK"):
-        if not GEMINI_KEY:
-            st.error("⚠️ Gemini Key Missing!")
-        elif not user_query:
-            st.warning("⚠️ Enter command.")
-        else:
-            try:
-                genai.configure(api_key=GEMINI_KEY)
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                prompt = f"Act as JARVIS for Boss Manikandan. Market Price: {st.session_state.price}. Query: {user_query}. Keep it robotic, short, and authoritative."
+        if query:
+            with st.spinner("Processing..."):
+                response = ask_gemini(query, f"Price: {st.session_state.price}, Velocity: {st.session_state.velocity}")
+                st.success(f"🦁 **JARVIS:** {response}")
                 
-                with st.spinner("Processing..."):
-                    response = model.generate_content(prompt)
-                
-                st.success(f"🦁 **JARVIS:** {response.text}")
-                
-                # Voice Output (Browser Native TTS)
-                js_code = f"""
-                    <script>
-                        var msg = new SpeechSynthesisUtterance("{response.text.replace('"', '')}");
-                        var voices = window.speechSynthesis.getVoices();
-                        // Try to find a male English voice
-                        msg.voice = voices.find(v => v.name.includes("Google UK English Male")) || voices[0];
-                        window.speechSynthesis.speak(msg);
-                    </script>
+                # Javascript Voice Output
+                js = f"""
+                <script>
+                    var msg = new SpeechSynthesisUtterance("{response.replace('"', '')}");
+                    var voices = window.speechSynthesis.getVoices();
+                    msg.voice = voices.find(v => v.name.includes("Google UK English Male")) || voices[0];
+                    msg.rate = 1.0; msg.pitch = 0.8;
+                    window.speechSynthesis.speak(msg);
+                </script>
                 """
-                st.components.v1.html(js_code, height=0)
-                
-            except Exception as e:
-                st.error(f"AI Error: {e}")
-                
+                st.components.v1.html(js, height=0)
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 8. APPROVAL SYSTEM (The Final Gate) ---
-# Logic: High Velocity triggers Approval Request
+# --- 9. APPROVAL SYSTEM (The Gatekeeper) ---
 signal = "WAIT"
-if velocity > 8: signal = "BUY CE"
-elif velocity < -8: signal = "BUY PE"
+if st.session_state.velocity > 8: signal = "BUY CE 🚀"
+elif st.session_state.velocity < -8: signal = "BUY PE 🩸"
 
 if signal != "WAIT":
     st.markdown(f"""
         <div style="background:#1e1e2e; border:2px solid #f59e0b; padding:20px; border-radius:15px; text-align:center; animation:pulse 1s infinite; margin-top:20px;">
-            <h2 style="color:#f59e0b; margin:0;">⚠️ SIGNAL DETECTED: {signal}</h2>
-            <p style="color:#aaa;">Reason: High Velocity Momentum</p>
+            <h2 style="color:#f59e0b; margin:0;">⚠️ TRADE DETECTED: {signal}</h2>
+            <p style="color:#aaa;">Reason: Neuro-Quantum Velocity Spike</p>
         </div>
+        <style>@keyframes pulse {{ 0% {{ box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }} 70% {{ box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }} 100% {{ box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }} }}</style>
     """, unsafe_allow_html=True)
     
-    # Approval Buttons
-    ac1, ac2 = st.columns(2)
-    with ac1:
+    c1, c2 = st.columns(2)
+    with c1:
         if st.button(f"✅ APPROVE {signal}", use_container_width=True):
-            st.toast(f"Order Executed: {signal}", icon="🚀")
+            st.toast("Trade Executed Successfully!", icon="🚀")
             send_telegram(f"Trade Executed: {signal} @ {st.session_state.price}")
-            # Add Upstox order placement code here
-    with ac2:
+    with c2:
         if st.button("❌ REJECT", use_container_width=True):
-            st.toast("Trade Cancelled", icon="🛑")
-            send_telegram(f"Trade Rejected: {signal}")
+            st.toast("Trade Rejected.", icon="🛑")
 
-# --- 9. AUTO-REFRESH (Live Simulation) ---
+# --- 10. AUTO REFRESH ---
 time.sleep(1)
 st.rerun()
