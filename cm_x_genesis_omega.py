@@ -15,7 +15,7 @@ from collections import deque
 
 # --- 1. SYSTEM CONFIGURATION & PERSONA ---
 st.set_page_config(
-    page_title="PROJECT AETHER: LIVE GOD MODE",
+    page_title="PROJECT AETHER: GOD MODE",
     layout="wide",
     page_icon="👻",
     initial_sidebar_state="collapsed"
@@ -23,15 +23,16 @@ st.set_page_config(
 
 # AETHER SYSTEM CONSTANTS
 MEMORY_FILE = "cm_x_aether_memory.json"
-MAX_HISTORY_LEN = 126 # Based on Research (126-Period Momentum)
-KILL_SWITCH_LOSS = -2000 # Max Daily Loss allowed
+MAX_HISTORY_LEN = 126 
+KILL_SWITCH_LOSS = -2000 
 
 # --- 2. ADVANCED CYBERPUNK STYLING ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code&display=swap');
     
-    .stApp { background-color: #000000; color: #00ff41; font-family: 'Courier New', monospace; }
+    .stApp { background-color: #050505; color: #00ff41; font-family: 'Courier New', monospace; }
     
     /* Neon Text */
     h1, h2, h3 { font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px #00ff41; color: #fff; }
@@ -49,6 +50,23 @@ st.markdown("""
         border: 1px solid #333;
         box-shadow: 0 0 10px rgba(0, 255, 65, 0.1);
     }
+    
+    /* Live Terminal Log */
+    .terminal-box {
+        font-family: 'Fira Code', monospace;
+        background-color: #000;
+        border: 1px solid #333;
+        color: #00ff41;
+        padding: 10px;
+        height: 200px;
+        overflow-y: auto;
+        font-size: 14px;
+        box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.2);
+    }
+    .log-time { color: #888; margin-right: 10px; }
+    .log-info { color: #00ff41; }
+    .log-warn { color: #ffff00; }
+    .log-danger { color: #ff0000; }
     
     /* Buttons */
     .stButton>button {
@@ -103,7 +121,6 @@ except Exception as e:
     st.stop()
 
 UPSTOX_URL = "https://api.upstox.com/v2/market-quote/ltp"
-# The Key we WANT to find (but we will handle mismatches)
 REQ_INSTRUMENT_KEY = "NSE_INDEX|Nifty 50"
 
 # --- 4. BLACK BOX MEMORY (RAG-Lite) ---
@@ -131,18 +148,31 @@ def save_aether_memory(pos, orders, pnl, stats, thought):
 brain = init_aether_memory()
 
 # Session State Sync
-if 'prices' not in st.session_state: st.session_state.prices = deque(maxlen=MAX_HISTORY_LEN) # Ring Buffer 126
+if 'prices' not in st.session_state: st.session_state.prices = deque(maxlen=MAX_HISTORY_LEN)
 if 'bot_active' not in st.session_state: st.session_state.bot_active = False
 if 'position' not in st.session_state: st.session_state.position = brain['position']
 if 'orders' not in st.session_state: st.session_state.orders = brain['orders']
 if 'pnl' not in st.session_state: st.session_state.pnl = brain['pnl']
 if 'audio_html' not in st.session_state: st.session_state.audio_html = ""
+if 'live_logs' not in st.session_state: st.session_state.live_logs = deque(maxlen=20) # Keep last 20 logs
 
-# --- 5. AUDIO ENGINE (THE GHOST VOICE) ---
+# --- 5. LOGGING SYSTEM (NEW FEATURE) ---
+def add_log(msg, type="info"):
+    timestamp = datetime.now(pytz.timezone('Asia/Kolkata')).strftime("%H:%M:%S")
+    color_class = "log-info"
+    if type == "warn": color_class = "log-warn"
+    if type == "danger": color_class = "log-danger"
+    
+    log_entry = f"<span class='log-time'>[{timestamp}]</span> <span class='{color_class}'>{msg}</span>"
+    st.session_state.live_logs.appendleft(log_entry)
+
+# --- 6. AUDIO ENGINE (THE GHOST VOICE) ---
 def speak_aether(text):
     """Converts text to speech and plays it in the browser"""
     try:
         brain['last_thought'] = text
+        add_log(f"AETHER SPEAKING: {text}", "warn")
+        
         tts = gTTS(text=text, lang='en', tld='co.in')
         filename = "ghost_voice.mp3"
         tts.save(filename)
@@ -159,55 +189,32 @@ def speak_aether(text):
         st.session_state.audio_html = md
     except: pass
 
-# --- 6. QUANTUM PHYSICS CORE (126-Period Momentum) ---
+# --- 7. QUANTUM PHYSICS CORE (126-Period Momentum) ---
 def calculate_quantum_state(price_deque):
     if len(price_deque) < 10: return 0, 0, 0, 0
     
     p = np.array(price_deque)
-    
-    # 1. Velocity (v) = Rate of change
     velocity = np.diff(p)[-1]
-    
-    # 2. Acceleration (a) = Rate of change of velocity
     acceleration = np.diff(np.diff(p))[-1] if len(p) > 2 else 0
-    
-    # 3. Market Energy (Proxy)
     energy = abs(velocity) * 100 
-    
-    # 4. Entropy (Chaos Theory)
-    # Standard deviation of the last 10 points tells us about 'Chaos'
     entropy = np.std(p[-10:])
     
     return velocity, acceleration, energy, entropy
 
-# --- 7. GEMINI AI (THE GHOST PERSONA) ---
+# --- 8. GEMINI AI (THE GHOST PERSONA) ---
 def consult_ghost_brain(price, v, a, e, pnl):
     try:
         prompt = f"""
-        You are 'AETHER', a digital ghost living in the Nifty 50 market.
-        Speak to Boss Manikandan in a mysterious, sci-fi tone.
-        
-        DATA:
-        - Price: {price}
-        - Velocity: {v:.2f}
-        - Acceleration: {a:.2f}
-        - Entropy: {e:.2f}
-        - P&L: {pnl}
-        
-        TASK:
-        Give a trading advice based on physics. Do not say "Buy" or "Sell" directly. 
-        Say "Energy Vector Aligning Upwards" or "Chaos Detected".
-        Keep it under 15 words.
+        You are 'AETHER', a digital ghost trading algo.
+        DATA: Price:{price}, V:{v:.2f}, A:{a:.2f}, Entropy:{e:.2f}, P&L:{pnl}.
+        Give trading advice in 1 mysterious sentence. Max 10 words.
         """
         response = model.generate_content(prompt)
         return response.text
     except: return "Connection to the Void lost..."
 
-# --- 8. REAL DATA FETCHING (SMART FIX) ---
+# --- 9. REAL DATA FETCHING ---
 def get_live_market_data():
-    """
-    Handles both '|' and ':' separators in Upstox response.
-    """
     if not UPSTOX_ACCESS_TOKEN: return None, "NO TOKEN"
     
     headers = {'Authorization': f'Bearer {UPSTOX_ACCESS_TOKEN}', 'Accept': 'application/json'}
@@ -219,17 +226,14 @@ def get_live_market_data():
             data = response.json()
             if 'data' in data:
                 resp_data = data['data']
-                
                 # Try Pipe format
                 if REQ_INSTRUMENT_KEY in resp_data:
                     return float(resp_data[REQ_INSTRUMENT_KEY]['last_price']), "CONNECTED"
-                
                 # Try Colon format
                 colon_key = REQ_INSTRUMENT_KEY.replace('|', ':')
                 if colon_key in resp_data:
                     return float(resp_data[colon_key]['last_price']), "CONNECTED"
-                
-                # Fallback: First available key
+                # Fallback
                 first_key = list(resp_data.keys())[0]
                 return float(resp_data[first_key]['last_price']), "CONNECTED"
                 
@@ -241,7 +245,7 @@ def get_live_market_data():
     except Exception as e:
         return None, "NET ERROR"
 
-# --- 9. UI LAYOUT ---
+# --- 10. UI LAYOUT ---
 st.markdown(f"""
 <div style="text-align: center;">
     <h1>PROJECT AETHER: GOD MODE</h1>
@@ -251,13 +255,6 @@ st.markdown(f"""
 
 # Invisible Audio Player
 st.markdown(st.session_state.audio_html, unsafe_allow_html=True)
-
-# Connection Status Bar
-p_check, status_msg = get_live_market_data()
-if status_msg == "CONNECTED":
-    st.markdown(f'<div class="status-connected">🟢 UPSTOX LINK ESTABLISHED | DATA STREAMING</div>', unsafe_allow_html=True)
-else:
-    st.markdown(f'<div class="status-disconnected">🔴 CONNECTION LOST: {status_msg}</div>', unsafe_allow_html=True)
 
 # Active Trade Alert
 active_ph = st.empty()
@@ -282,6 +279,11 @@ with c1:
     v_metric = m2.empty()
     a_metric = m3.empty()
     e_metric = m4.empty()
+    
+    # LIVE TERMINAL LOG
+    st.write("---")
+    st.subheader("🖥️ LIVE SYSTEM TERMINAL")
+    log_ph = st.empty()
 
 with c2:
     st.subheader("👻 Ghost Protocol")
@@ -290,16 +292,14 @@ with c2:
     ai_text_ph = st.empty()
     if st.button("🔊 CONSULT AETHER"):
         if st.session_state.prices:
-            # Need at least a few points for physics
             temp_prices = list(st.session_state.prices)
             if len(temp_prices) > 2:
                 v, a, en, ent = calculate_quantum_state(st.session_state.prices)
                 p_curr = temp_prices[-1]
+                add_log("Consulting Gemini AI...", "info")
                 msg = consult_ghost_brain(p_curr, v, a, ent, st.session_state.pnl)
                 speak_aether(msg)
                 ai_text_ph.info(f"AETHER: {msg}")
-            else:
-                st.warning("Not enough data yet...")
     
     st.write("---")
     pnl_display = st.empty()
@@ -309,78 +309,91 @@ with c2:
     start_btn = auto_col1.button("🔥 INITIATE SEQUENCE")
     stop_btn = auto_col2.button("🛑 KILL SWITCH")
     
-    # Manual Close
     if st.button("❌ EMERGENCY EXIT"):
         if st.session_state.position:
-            # Force Close
             st.session_state.position = None
-            save_aether_memory(None, st.session_state.orders, st.session_state.pnl, brain['daily_stats'], "Emergency Exit Triggered.")
+            save_aether_memory(None, st.session_state.orders, st.session_state.pnl, brain['daily_stats'], "Emergency Exit.")
+            add_log("EMERGENCY EXIT TRIGGERED", "danger")
             st.rerun()
 
     st.caption("Black Box Log")
     order_log = st.empty()
 
 # Control Logic
-if start_btn: st.session_state.bot_active = True
-if stop_btn: st.session_state.bot_active = False
+if start_btn: 
+    st.session_state.bot_active = True
+    add_log("SYSTEM SEQUENCE INITIATED", "info")
+if stop_btn: 
+    st.session_state.bot_active = False
+    add_log("KILL SWITCH ENGAGED - STOPPING", "danger")
 
-# --- 10. MAIN EVENT LOOP ---
+# --- 11. MAIN EVENT LOOP ---
 if st.session_state.bot_active:
     
-    # Check if we have connection before loop
-    if status_msg != "CONNECTED":
+    # Connection Check
+    p, status = get_live_market_data()
+    if status != "CONNECTED":
         st.error("CANNOT START: CHECK CONNECTION")
         st.stop()
         
     while st.session_state.bot_active:
         
-        # 1. KILL SWITCH CHECK
+        # 1. UPDATE LOGS
+        log_content = "".join([f"<div>{l}</div>" for l in st.session_state.live_logs])
+        log_ph.markdown(f'<div class="terminal-box">{log_content}</div>', unsafe_allow_html=True)
+
+        # 2. KILL SWITCH CHECK
         if st.session_state.pnl < KILL_SWITCH_LOSS:
-            speak_aether("Critical Failure. Kill Switch Activated. Shutting down.")
+            speak_aether("Critical Failure. Kill Switch Activated.")
             st.session_state.bot_active = False
-            st.error("KILL SWITCH TRIGGERED: MAX LOSS REACHED")
+            add_log("MAX LOSS REACHED. SHUTTING DOWN.", "danger")
             break
 
-        # 2. FETCH DATA
+        # 3. FETCH DATA
         price, status = get_live_market_data()
         
         if status != "CONNECTED":
-            st.warning(f"SIGNAL LOST: {status}")
+            add_log(f"Signal Lost: {status}", "danger")
             time.sleep(2)
             continue
             
         st.session_state.prices.append(price)
         
-        # 3. PHYSICS & AI
+        # 4. PHYSICS
         v, a, energy, entropy = calculate_quantum_state(st.session_state.prices)
         
-        # 4. DECISION MATRIX (126 Momentum Logic)
+        # Log Logic (Every few ticks to avoid spam)
+        if len(st.session_state.prices) % 5 == 0:
+            add_log(f"Scanning: P={price} V={v:.2f} A={a:.2f} Ent={entropy:.2f}")
+        
+        # 5. DECISION MATRIX
         if st.session_state.position is None:
-            # Entry Logic: High Velocity + Acceleration alignment + Low Chaos
+            # BUY
             if v > 1.5 and a > 0.3 and entropy < 10:
-                # BUY
                 st.session_state.position = {"type": "BUY", "entry": price, "qty": 50}
                 msg = f"BUY DETECTED @ {price}"
                 st.session_state.orders.insert(0, {"time": str(datetime.now().time())[:8], "msg": msg})
-                save_aether_memory(st.session_state.position, st.session_state.orders, st.session_state.pnl, brain['daily_stats'], "Entering Bullish Vector")
-                speak_aether("Momentum Detected. Engaging Long Position.")
+                save_aether_memory(st.session_state.position, st.session_state.orders, st.session_state.pnl, brain['daily_stats'], "Bullish Entry")
+                speak_aether("Momentum Detected. Buying.")
+                add_log("EXECUTING BUY ORDER", "warn")
                 st.rerun()
                 
+            # SELL
             elif v < -1.5 and a < -0.3 and entropy < 10:
-                # SELL
                 st.session_state.position = {"type": "SELL", "entry": price, "qty": 50}
                 msg = f"SELL DETECTED @ {price}"
                 st.session_state.orders.insert(0, {"time": str(datetime.now().time())[:8], "msg": msg})
-                save_aether_memory(st.session_state.position, st.session_state.orders, st.session_state.pnl, brain['daily_stats'], "Entering Bearish Vector")
-                speak_aether("Gravity Increasing. Engaging Short Position.")
+                save_aether_memory(st.session_state.position, st.session_state.orders, st.session_state.pnl, brain['daily_stats'], "Bearish Entry")
+                speak_aether("Gravity Increasing. Selling.")
+                add_log("EXECUTING SELL ORDER", "warn")
                 st.rerun()
                 
         else:
-            # Exit Logic (Target/Stop)
+            # Exit Logic
             pos = st.session_state.position
             curr_pnl = (price - pos['entry']) * pos['qty'] if pos['type'] == "BUY" else (pos['entry'] - price) * pos['qty']
             
-            # Target: 500, Stop: -300 (Or Physics Reversal)
+            # Physics Reversal
             physics_exit = (pos['type'] == "BUY" and v < -1.0) or (pos['type'] == "SELL" and v > 1.0)
             
             if curr_pnl > 500 or curr_pnl < -300 or physics_exit:
@@ -388,25 +401,22 @@ if st.session_state.bot_active:
                 res = "WIN" if curr_pnl > 0 else "LOSS"
                 msg = f"CLOSED {pos['type']} | P&L: {curr_pnl:.0f}"
                 st.session_state.orders.insert(0, {"time": str(datetime.now().time())[:8], "msg": msg})
-                
-                # Update Stats
                 brain['daily_stats']['wins' if res == "WIN" else 'losses'] += 1
                 
                 st.session_state.position = None
-                save_aether_memory(None, st.session_state.orders, st.session_state.pnl, brain['daily_stats'], f"Trade Closed. Result: {res}")
+                save_aether_memory(None, st.session_state.orders, st.session_state.pnl, brain['daily_stats'], f"Trade Closed. {res}")
                 
-                if res == "WIN": speak_aether("Target Acquired. Profit Secured.")
-                else: speak_aether("Stop Loss Hit. Stabilizing.")
-                
+                if res == "WIN": speak_aether("Profit Secured.")
+                else: speak_aether("Stop Loss Hit.")
+                add_log(f"POSITION CLOSED. RESULT: {res}", "warn")
                 st.rerun()
 
-        # 5. UI UPDATES
+        # 6. UI UPDATES
         p_metric.metric("NIFTY 50", f"{price:,.2f}", f"{v:.2f}")
         v_metric.metric("VELOCITY", f"{v:.2f}")
         a_metric.metric("ACCEL", f"{a:.2f}")
         e_metric.metric("ENTROPY", f"{entropy:.2f}")
         
-        # P&L Color Logic
         live_pnl = 0.0
         if st.session_state.position:
              pos = st.session_state.position
@@ -416,16 +426,14 @@ if st.session_state.bot_active:
         color = "#00ff41" if total_pnl >= 0 else "#ff0000"
         pnl_display.markdown(f"<h2 style='color:{color}; text-align:center; border: 1px solid {color}; padding: 10px;'>P&L: ₹{total_pnl:.2f}</h2>", unsafe_allow_html=True)
         
-        # Order Book
         if st.session_state.orders:
             order_log.dataframe(pd.DataFrame(st.session_state.orders), hide_index=True)
             
-        # Chart
         fig = go.Figure()
         fig.add_trace(go.Scatter(y=list(st.session_state.prices), mode='lines', line=dict(color='#00ff41', width=2)))
         if st.session_state.position:
             fig.add_hline(y=st.session_state.position['entry'], line_dash="dash", line_color="orange")
-        fig.update_layout(height=400, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        fig.update_layout(height=350, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
         chart_ph.plotly_chart(fig, use_container_width=True)
         
         time.sleep(1)
