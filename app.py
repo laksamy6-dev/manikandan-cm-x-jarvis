@@ -383,5 +383,29 @@ if st.session_state.bot_active:
     log_html = "".join([l for l in st.session_state.live_logs])
     log_ph.markdown(f'<div style="height:200px; overflow-y:auto; border:2px solid #000; padding:5px;">{log_html}</div>', unsafe_allow_html=True)
 
-    time.sleep(4)
-    if not st.session_state.pending_signal: st.rerun()
+    # 6. UI UPDATES
+        p_metric.metric("NIFTY 50", f"{price:,.2f}", f"{v:.2f}")
+        v_metric.metric("VELOCITY", f"{v:.2f}")
+        a_metric.metric("ACCEL", f"{a:.2f}")
+        e_metric.metric("ENTROPY", f"{entropy:.2f}")
+        
+        live_pnl = 0.0
+        if st.session_state.position:
+             pos = st.session_state.position
+             live_pnl = (price - pos['entry']) * pos['qty'] if pos['type'] == "BUY" else (pos['entry'] - price) * pos['qty']
+        
+        total_pnl = st.session_state.pnl + live_pnl
+        color = "#00ff41" if total_pnl >= 0 else "#ff0000"
+        pnl_display.markdown(f"<h2 style='color:{color}; text-align:center; border: 1px solid {color}; padding: 10px;'>P&L: ₹{total_pnl:.2f}</h2>", unsafe_allow_html=True)
+        
+        if st.session_state.orders:
+            order_log.dataframe(pd.DataFrame(st.session_state.orders), hide_index=True)
+            
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(y=list(st.session_state.prices), mode='lines', line=dict(color='#00ff41', width=2)))
+        if st.session_state.position:
+            fig.add_hline(y=st.session_state.position['entry'], line_dash="dash", line_color="orange")
+        fig.update_layout(height=350, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        chart_ph.plotly_chart(fig, use_container_width=True)
+        
+        time.sleep(1)
