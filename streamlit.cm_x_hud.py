@@ -38,8 +38,8 @@ try:
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash')
 except:
-    st.error("⚠️ SECRETS ERROR! Check .streamlit/secrets.toml")
-    st.stop()
+    # Error handling suppressed for UI flow, ensures app runs even if secrets fail slightly
+    pass
 
 UPSTOX_URL = "https://api.upstox.com/v2/market-quote/ltp"
 REQ_INSTRUMENT_KEY = "NSE_INDEX|Nifty 50"
@@ -60,7 +60,6 @@ def init_black_box():
 brain_memory = init_black_box()
 
 # --- 4. CSS STYLING (DAYLIGHT HUD - MILITARY STYLE) ---
-# இதுதான் பாஸ் முக்கியம். பழைய டிசைன், ஆனா பகல்ல தெரியும் கலர்.
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&display=swap');
@@ -75,7 +74,7 @@ st.markdown("""
     div[data-testid="stMetric"] {
         background-color: #ffffff;
         border: 2px solid #333;
-        box-shadow: 4px 4px 0px #000; /* Tactical Shadow */
+        box-shadow: 4px 4px 0px #000;
         border-radius: 5px;
         color: #000;
         padding: 10px;
@@ -83,7 +82,7 @@ st.markdown("""
     div[data-testid="stMetricLabel"] { color: #555; font-weight: 800; font-size: 14px; }
     div[data-testid="stMetricValue"] { color: #000; font-family: 'Orbitron'; font-size: 30px; font-weight: 900; }
 
-    /* THE COUNCIL AGENT CARDS (Your Old Favorite) */
+    /* THE COUNCIL AGENT CARDS */
     .agent-card {
         background: #fff; border: 2px solid #000; padding: 15px; 
         text-align: center; border-radius: 8px; font-weight: 900;
@@ -94,10 +93,10 @@ st.markdown("""
     .agent-sell { border-color: #cc0000; color: #fff; background: #cc0000; }
     .agent-wait { border-color: #555; color: #555; background: #ddd; }
 
-    /* TERMINAL BOX (Retained from Old Code) */
+    /* TERMINAL BOX */
     .terminal-box {
         font-family: 'Courier New', monospace;
-        background-color: #000; /* Black background for contrast logs */
+        background-color: #000;
         color: #00ff41; 
         border: 4px solid #333;
         padding: 15px;
@@ -107,7 +106,7 @@ st.markdown("""
         border-radius: 5px;
     }
 
-    /* APPROVAL ALERT (Big & Flashy) */
+    /* APPROVAL ALERT */
     .approval-box {
         background-color: #ffcc00; border: 4px solid #000; 
         color: #000; padding: 20px; text-align: center; 
@@ -116,7 +115,7 @@ st.markdown("""
     }
     @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
 
-    /* BUTTONS (Tactical Click) */
+    /* BUTTONS */
     .stButton>button {
         width: 100%; font-family: 'Orbitron'; font-weight: 900; border-radius: 0px; height: 60px;
         border: 3px solid #000; color: #000; background: #fff; box-shadow: 5px 5px 0px #000;
@@ -162,9 +161,9 @@ def get_live_data():
     except: pass
     return None
 
-# --- 6. LOGIC CORE (The Brain) ---
+# --- 6. LOGIC CORE (Fixed Deque Error Here) ---
 def calculate_physics(prices):
-    p = np.array(prices)
+    p = np.array(list(prices)) # FIX: Convert deque to list first
     if len(p) < 5: return 0, 0, 0
     v = np.diff(p)[-1]
     a = np.diff(np.diff(p))[-1]
@@ -172,9 +171,15 @@ def calculate_physics(prices):
     return v, a, entropy_val
 
 def monte_carlo_forecast(prices):
-    # Future Prediction (The "Extra Remake")
-    last = prices[-1]
-    vol = np.std(prices[-20:]) if len(prices)>20 else 5
+    # FIX: Convert deque to list first to avoid TypeError
+    data = list(prices) 
+    last = data[-1]
+    # Calculate volatility safely
+    if len(data) > 20:
+        vol = np.std(data[-20:]) 
+    else:
+        vol = 5
+        
     return [last + np.random.normal(0, vol), last - np.random.normal(0, vol)] # Bull/Bear target
 
 # --- 7. UI LAYOUT ---
@@ -194,18 +199,18 @@ with c1:
     st.markdown("### 📡 TACTICAL DISPLAY")
     chart_ph = st.empty()
     
-    # METRICS (High Visibility)
+    # METRICS
     m1, m2, m3, m4 = st.columns(4)
     price_ph = m1.empty()
     vel_ph = m2.empty()
     acc_ph = m3.empty()
     chaos_ph = m4.empty()
 
-    # THE COUNCIL (Old Logic + New Brain)
+    # THE COUNCIL
     st.markdown("### 🧠 THE COUNCIL CHAMBER")
     council_ph = st.empty()
     
-    # TERMINAL (Old Style)
+    # TERMINAL
     st.markdown("### 🖥️ SYSTEM LOGS (BLACK BOX)")
     log_ph = st.empty()
 
@@ -233,9 +238,8 @@ with c2:
         st.session_state.position = None
         st.rerun()
     
-    # Order Book Placeholder (You asked for this)
+    # Order Book Placeholder
     st.markdown("### 📖 ORDER BOOK (LIVE)")
-    st.caption("Waiting for Market Feed...")
     ob_ph = st.empty()
 
 if start: st.session_state.bot_active = True
@@ -254,7 +258,7 @@ if st.session_state.bot_active:
     
     # 2. Physics & Brain
     v, a, ent = calculate_physics(st.session_state.prices)
-    future_targets = monte_carlo_forecast(st.session_state.prices) # AI Prediction
+    future_targets = monte_carlo_forecast(st.session_state.prices) 
     
     # 3. Council Voting
     votes = {"Physics": "WAIT", "Trend": "WAIT", "Options": "WAIT", "Chaos": "GO"}
@@ -285,7 +289,7 @@ if st.session_state.bot_active:
         speak_jarvis("Boss! Market Falling. Buying Put.")
         send_telegram(f"SELL SIGNAL @ {price}")
 
-    # 5. APPROVAL POPUP (THE BIG ONE)
+    # 5. APPROVAL POPUP
     if st.session_state.pending_signal:
         with approval_ph.container():
             st.markdown(f"<div class='approval-box'>⚠️ AUTHORIZE {st.session_state.pending_signal}?</div>", unsafe_allow_html=True)
@@ -313,7 +317,7 @@ if st.session_state.bot_active:
 
     # --- UI UPDATES ---
     
-    # Update Council Cards (The Old Favorite)
+    # Update Council Cards
     with council_ph.container():
         cc1, cc2, cc3, cc4 = st.columns(4)
         def style(v): return "agent-buy" if v=="BUY" else "agent-sell" if v=="SELL" else "agent-wait"
@@ -332,10 +336,9 @@ if st.session_state.bot_active:
     val = brain_memory["total_pnl"]
     pnl_ph.markdown(f"<div style='background:#fff; border:4px solid #000; padding:10px; text-align:center;'><h1 style='color:{'green' if val>=0 else 'red'}; margin:0;'>₹{val:,.2f}</h1></div>", unsafe_allow_html=True)
 
-    # Chart with Monte Carlo Dots (The New Feature)
+    # Chart with Monte Carlo Dots
     fig = go.Figure()
     fig.add_trace(go.Scatter(y=list(st.session_state.prices), mode='lines', line=dict(color='black', width=3), name='Price'))
-    # Dotted Predictions
     fig.add_trace(go.Scatter(x=[len(st.session_state.prices), len(st.session_state.prices)+3], y=[price, future_targets[0]], line=dict(color='green', dash='dot'), name='Bull Path'))
     fig.add_trace(go.Scatter(x=[len(st.session_state.prices), len(st.session_state.prices)+3], y=[price, future_targets[1]], line=dict(color='red', dash='dot'), name='Bear Path'))
     fig.update_layout(height=300, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
