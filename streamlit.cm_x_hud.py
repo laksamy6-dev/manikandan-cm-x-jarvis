@@ -251,24 +251,6 @@ if st.session_state.bot_active:
         else: price = 22000.00
     
     st.session_state.prices.append(price)
-
-    # --- 2. PHYSICS ENGINE (நியூட்டன் விதிகளின்படி கணக்கீடு) ---
-class PhysicsEngine:
-    def calculate(self, prices):
-        if len(prices) < 5: return 0, 0, 0
-        p = np.array(prices)
-        
-        # Velocity (வேகம்) - விலை மாற்றத்தின் வேகம்
-        v = np.gradient(p)[-1]
-        
-        # Acceleration (முடுக்கம்) - வேகம் கூடுகிறதா குறைகிறதா?
-        a = np.gradient(np.gradient(p))[-1]
-        
-        # Force (விசை) - சந்தையின் உந்துதல்
-        f = a * 100 
-        
-        return v, a, f
-
     
     # 2. Physics & Brain
     v, a, ent = calculate_physics(st.session_state.prices)
