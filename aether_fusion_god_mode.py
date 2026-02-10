@@ -1004,7 +1004,7 @@ if st.session_state.bot_active:
         chart_placeholder.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
         # --- K. SLEEP ---
-        time.sleep(1) # Update every second (adjust as needed for API limits or responsiveness)
+        time.sleep(3) # Update every second (adjust as needed for API limits or responsiveness)
 
 # --- 13. POST-LOOP UI (when bot is inactive) ---
 if not st.session_state.bot_active:
