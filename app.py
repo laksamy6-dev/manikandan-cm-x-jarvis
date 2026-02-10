@@ -1,273 +1,287 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
 import time
+import requests
 import json
-import os
-import math
+import google.generativeai as genai
+import plotly.graph_objects as go
+import hmac
 from datetime import datetime
-import pytz
-from collections import deque
 
-# --- 1. SYSTEM CONFIGURATION & UI SETUP ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="CM-X: SHADOW EMPEROR",
+    page_title="CM-X JARVIS: WAR ROOM",
+    page_icon="🦁",
     layout="wide",
-    page_icon="🦅",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. THE "SHADOW EMPEROR" CSS (DESIGN ENGINE) ---
+# --- 2. SECURITY LOCK (பாதுகாப்பு) ---
+def check_password():
+    """Returns `True` if the user had the correct password."""
+    def password_entered():
+        # டீஃபால்ட் பாஸ்வேர்ட்: "boss"
+        correct_password = st.secrets.get("system", {}).get("admin_password", "boss")
+        if hmac.compare_digest(st.session_state["password"], correct_password):
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if st.session_state.get("password_correct", False):
+        return True
+
+    # Login UI
+    st.markdown("""
+        <style>
+        .stApp { background-color: #000000; color: #00f3ff; }
+        .login-box { border: 2px solid #00f3ff; padding: 40px; border-radius: 15px; text-align: center; box-shadow: 0 0 20px rgba(0, 243, 255, 0.3); max-width: 400px; margin: 100px auto; }
+        .stTextInput input { color: #00f3ff !important; background-color: #111 !important; border: 1px solid #00f3ff !important; }
+        </style>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<div class='login-box'><h1>🦁 ACCESS DENIED</h1><p>IDENTIFY YOURSELF</p></div>", unsafe_allow_html=True)
+    st.text_input("ENTER ACCESS CODE:", type="password", key="password", on_change=password_entered)
+    
+    if "password_correct" in st.session_state and not st.session_state["password_correct"]:
+        st.error("⛔ ACCESS DENIED: தவறான கடவுச்சொல்!")
+        
+    return False
+
+if not check_password():
+    st.stop()
+
+# --- 3. UI THEME (SHADOW EMPEROR) ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap');
+    /* Global Theme */
+    .stApp { background-color: #02040a; color: #e2e8f0; }
     
-    /* GLOBAL THEME */
-    .stApp {
-        background-color: #050505;
-        color: #00f3ff;
-        font-family: 'Rajdhani', sans-serif;
-    }
-    
-    /* NEON TEXT & HEADERS */
-    h1, h2, h3, h4 {
+    /* Fire Text */
+    .fire-text {
+        background: linear-gradient(to top, #ff0000, #ff8800, #ffff00);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 900;
+        font-size: 1.8rem;
+        text-shadow: 0 0 10px rgba(255, 69, 0, 0.6);
+        animation: flicker 1.5s infinite alternate;
         font-family: 'Orbitron', sans-serif;
-        color: #ffffff;
-        text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
     }
-    
-    /* METRIC CARDS (GLASS NEUMORPHISM) */
-    div[data-testid="stMetric"] {
-        background: rgba(10, 20, 30, 0.8);
-        border: 1px solid rgba(0, 243, 255, 0.2);
+    @keyframes flicker {
+        0% { opacity: 1; text-shadow: 0 0 10px red; }
+        100% { opacity: 0.8; text-shadow: 0 0 20px orange; }
+    }
+
+    /* Holographic Cards */
+    .holo-card {
+        background: rgba(10, 20, 35, 0.85);
+        border: 1px solid rgba(0, 243, 255, 0.3);
         box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
-        border-radius: 10px;
-        padding: 15px;
-        transition: all 0.3s ease;
-    }
-    div[data-testid="stMetric"]:hover {
-        box-shadow: 0 0 25px rgba(0, 243, 255, 0.3);
-        border-color: rgba(0, 243, 255, 0.6);
-    }
-    div[data-testid="stMetricLabel"] { color: #888; font-size: 12px; letter-spacing: 1px; }
-    div[data-testid="stMetricValue"] { 
-        color: #00f3ff; font-family: 'Orbitron', sans-serif; font-size: 24px; text-shadow: 0 0 5px #00f3ff;
-    }
-
-    /* CUSTOM TERMINAL LOG */
-    .terminal-box {
-        font-family: 'Courier New', monospace;
-        background-color: #000;
-        border-left: 3px solid #00f3ff;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
         color: #00f3ff;
-        padding: 15px;
-        height: 250px;
-        overflow-y: auto;
-        font-size: 12px;
-        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
     }
-    .log-time { color: #555; font-weight: bold; margin-right: 8px; }
-    .log-warn { color: #ff9900; }
-    .log-danger { color: #ff003c; text-shadow: 0 0 5px #ff003c; }
-    .log-success { color: #00ff41; text-shadow: 0 0 5px #00ff41; }
 
-    /* ANIMATED RADAR (CSS) */
-    .radar {
-        width: 80px; height: 80px;
-        border: 2px solid #ff003c; border-radius: 50%;
-        position: relative; margin: 0 auto;
-        background: radial-gradient(circle, rgba(255,0,60,0.1) 0%, rgba(0,0,0,0) 70%);
-        box-shadow: 0 0 15px rgba(255, 0, 60, 0.3);
+    /* Metrics */
+    .metric-val { font-size: 2.5rem; font-weight: bold; font-family: monospace; color: white; }
+    .metric-lbl { font-size: 0.9rem; color: #64748b; text-transform: uppercase; letter-spacing: 2px; }
+
+    /* Buttons */
+    .stButton>button {
+        background: linear-gradient(45deg, #00f3ff, #0066ff);
+        color: black;
+        font-weight: bold;
+        border: none;
+        width: 100%;
+        transition: all 0.3s;
+        border-radius: 8px;
+        padding: 10px;
     }
-    .radar::after {
-        content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        border-radius: 50%;
-        background: conic-gradient(from 0deg, transparent 0deg, rgba(255, 0, 60, 0.5) 60deg, transparent 61deg);
-        animation: spin 2s linear infinite;
+    .stButton>button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 20px #00f3ff;
+        color: white;
     }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
+    
+    /* Chat Input */
+    .stTextInput input {
+        background-color: rgba(0,0,0,0.5) !important;
+        color: #00f3ff !important;
+        border: 1px solid #0044ff !important;
+    }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# --- 3. THE BRAIN (Logic Core) ---
-class QuantumBrain:
-    def __init__(self):
-        self.memory_file = "cm_x_core_memory.json"
-        self.load_memory()
-        
-    def load_memory(self):
-        if os.path.exists(self.memory_file):
-            with open(self.memory_file, 'r') as f:
-                self.memory = json.load(f)
-        else:
-            self.memory = {"pnl": 0.0, "trades": [], "wins": 0, "losses": 0}
+# --- 4. SECRETS LOADING (Cloud Safe) ---
+# Streamlit Cloud uses st.secrets to store keys securely
+try:
+    UPSTOX_KEY = st.secrets["api_keys"]["Upstox_api_key"]
+    GEMINI_KEY = st.secrets["api_keys"]["Gemini_api_key"]
+    TELEGRAM_TOKEN = st.secrets["api_keys"]["Telegram_bot_token"]
+    CHAT_ID = st.secrets["api_keys"]["Telegram_chat_id"]
+except:
+    # Fallback for local testing if secrets.toml is missing
+    GEMINI_KEY = "" # Will prompt user
+    TELEGRAM_TOKEN = ""
+    CHAT_ID = ""
 
-    def save_memory(self):
-        with open(self.memory_file, 'w') as f:
-            json.dump(self.memory, f)
+# --- 5. TELEGRAM ALERT SYSTEM ---
+def send_telegram(message):
+    if TELEGRAM_TOKEN and CHAT_ID:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        payload = {"chat_id": CHAT_ID, "text": f"🦁 **JARVIS:** {message}", "parse_mode": "Markdown"}
+        try:
+            requests.post(url, json=payload, timeout=2)
+        except:
+            pass
 
-    def calculate_metrics(self, prices):
-        if len(prices) < 20: return 0, 0, 0, 0
-        
-        p = np.array(prices)
-        
-        # 1. PHYSICS (Velocity & Acceleration)
-        velocity = np.diff(p)[-1]
-        acceleration = np.diff(np.diff(p))[-1] if len(p) > 2 else 0
-        
-        # 2. ENTROPY (Chaos)
-        log_returns = np.diff(np.log(p))
-        hist, _ = np.histogram(log_returns, bins=10, density=True)
-        probs = hist / hist.sum()
-        probs = probs[probs > 0] # Filter zeros
-        entropy = -np.sum(probs * np.log(probs))
-        entropy_norm = min(max(entropy, 0), 1) # Normalize 0-1
-        
-        # 3. HURST EXPONENT (Trend Strength)
-        # Simplified calculation for speed
-        lags = range(2, 10)
-        tau = [np.sqrt(np.std(np.subtract(p[lag:], p[:-lag]))) for lag in lags]
-        poly = np.polyfit(np.log(lags), np.log(tau), 1)
-        hurst = poly[0] * 2.0
-        
-        return velocity, acceleration, entropy_norm, hurst
-
-# --- 4. SESSION STATE INITIALIZATION ---
-if 'brain' not in st.session_state:
-    st.session_state.brain = QuantumBrain()
-if 'prices' not in st.session_state:
-    st.session_state.prices = deque(maxlen=100)
-    # Seed with dummy data for display
-    start_price = 21500
-    for _ in range(50):
-        st.session_state.prices.append(start_price + np.random.normal(0, 5))
-        
-if 'logs' not in st.session_state:
-    st.session_state.logs = deque(maxlen=20)
-if 'active_trade' not in st.session_state:
-    st.session_state.active_trade = None
-
-def add_log(msg, type="info"):
-    t = datetime.now().strftime("%H:%M:%S")
-    css = "log-info"
-    if type == "danger": css = "log-danger"
-    if type == "success": css = "log-success"
-    if type == "warn": css = "log-warn"
-    st.session_state.logs.appendleft(f"<span class='log-time'>[{t}]</span> <span class='{css}'>{msg}</span>")
-
-# --- 5. MAIN DASHBOARD LAYOUT ---
-# Header
-c1, c2, c3 = st.columns([1, 4, 1])
+# --- 6. HEADER & IDENTITY ---
+c1, c2 = st.columns([3, 1])
 with c1:
-    st.markdown("### 🦅 CM-X")
+    st.markdown("<h1>CM-X <span style='color:#00f3ff'>JARVIS</span></h1>", unsafe_allow_html=True)
+    st.markdown("<h3 class='fire-text'>CREATOR: BOSS MANIKANDAN</h3>", unsafe_allow_html=True)
 with c2:
-    st.markdown("<h1 style='text-align: center;'>SHADOW EMPEROR <span style='font-size:14px; color:#ff003c'>[PREDATOR MODE]</span></h1>", unsafe_allow_html=True)
-with c3:
-    st.metric("NET P&L", f"₹{st.session_state.brain.memory['pnl']:.2f}")
+    st.success("🟢 SYSTEM ONLINE")
+    if st.button("🔄 REFRESH SYSTEM"):
+        st.rerun()
 
-st.divider()
+# --- 7. MAIN DASHBOARD ---
+col_left, col_right = st.columns([2, 1])
 
-# Main Grid
-col_left, col_mid, col_right = st.columns([1, 2, 1])
+# Initialize State
+if 'price' not in st.session_state: st.session_state.price = 19500.0
+if 'vwap' not in st.session_state: st.session_state.vwap = 19500.0
+if 'history' not in st.session_state: 
+    st.session_state.history = pd.DataFrame(columns=['Time', 'Price', 'VWAP'])
 
-# --- LEFT COLUMN: QUANTUM METRICS ---
 with col_left:
-    st.markdown("### 🧠 NEURAL CORTEX")
-    
-    # Live Data Simulation
-    current_price = st.session_state.prices[-1]
-    # Simulate new tick
-    new_price = current_price + np.random.normal(0, 2)
-    st.session_state.prices.append(new_price)
-    
-    # Calculate Metrics
-    v, a, ent, hurst = st.session_state.brain.calculate_metrics(list(st.session_state.prices))
-    
-    st.metric("VELOCITY (v)", f"{v:.2f}", delta=f"{a:.2f} (a)")
-    st.metric("ENTROPY (Chaos)", f"{ent:.2f}", delta_color="inverse")
-    st.metric("HURST (Trend)", f"{hurst:.2f}")
-    
-    if hurst > 0.6:
-        st.success("STRONG TREND DETECTED")
-    elif ent > 0.7:
-        st.error("HIGH CHAOS - STAY AWAY")
-    else:
-        st.info("MARKET RANGING")
+    # --- VIDEO FEED (Maximize Button Included in Streamlit Video) ---
+    st.markdown('<div class="holo-card">', unsafe_allow_html=True)
+    st.markdown("### 📡 LIVE MARKET FEED")
+    # This URL is a placeholder. Replace with your trading view stream link or keep for demo.
+    st.video("https://www.w3schools.com/html/mov_bbb.mp4", format="video/mp4", start_time=0)
+    st.caption("Secure Feed: Upstox Data Stream")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- MIDDLE COLUMN: LIVE CHART & ACTION ---
-with col_mid:
-    # Chart
+    # --- LIVE NEURAL CHART ---
+    st.markdown('<div class="holo-card">', unsafe_allow_html=True)
+    st.markdown("### 📈 NEURAL SCANNER")
+    
+    # Simulate Data Logic (Brain Simulation)
+    move = np.random.randint(-12, 18)
+    st.session_state.price += move
+    st.session_state.vwap = (st.session_state.vwap * 19 + st.session_state.price) / 20
+    
+    # History Update
+    new_row = pd.DataFrame({
+        'Time': [datetime.now().strftime("%H:%M:%S")], 
+        'Price': [st.session_state.price], 
+        'VWAP': [st.session_state.vwap]
+    })
+    st.session_state.history = pd.concat([st.session_state.history, new_row]).tail(60)
+
+    # Plotly Chart
     fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        y=list(st.session_state.prices), 
-        mode='lines', 
-        name='NIFTY 50',
-        line=dict(color='#00f3ff', width=2),
-        fill='tozeroy',
-        fillcolor='rgba(0, 243, 255, 0.1)'
-    ))
+    fig.add_trace(go.Scatter(x=st.session_state.history['Time'], y=st.session_state.history['Price'], 
+                             mode='lines', name='Price', line=dict(color='#00f3ff', width=3)))
+    fig.add_trace(go.Scatter(x=st.session_state.history['Time'], y=st.session_state.history['VWAP'], 
+                             mode='lines', name='VWAP', line=dict(color='#ef4444', width=2, dash='dot')))
+    
     fig.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#888'),
+        paper_bgcolor='rgba(0,0,0,0)', 
+        plot_bgcolor='rgba(0,0,0,0)', 
+        font=dict(color='#64748b'),
+        margin=dict(l=0, r=0, t=30, b=0),
         height=350,
-        margin=dict(l=0, r=0, t=20, b=0),
         xaxis=dict(showgrid=False),
-        yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)')
+        yaxis=dict(showgrid=True, gridcolor='#1e293b')
     )
     st.plotly_chart(fig, use_container_width=True)
-    
-    # DECISION LOGIC
-    decision = "WAIT"
-    if not st.session_state.active_trade:
-        if v > 1.5 and hurst > 0.55 and ent < 0.6:
-            decision = "BUY CE 🚀"
-            if st.button(f"EXECUTE {decision}", type="primary"):
-                st.session_state.active_trade = {"type": "CE", "entry": new_price}
-                add_log(f"ENTRY TAKEN: CE @ {new_price}", "success")
-                st.rerun()
-        elif v < -1.5 and hurst > 0.55 and ent < 0.6:
-            decision = "BUY PE 🩸"
-            if st.button(f"EXECUTE {decision}", type="primary"):
-                st.session_state.active_trade = {"type": "PE", "entry": new_price}
-                add_log(f"ENTRY TAKEN: PE @ {new_price}", "danger")
-                st.rerun()
-        else:
-            st.button("SCANNING FOR TARGET...", disabled=True)
-    else:
-        # Exit Logic
-        trade = st.session_state.active_trade
-        pnl = (new_price - trade['entry']) if trade['type'] == "CE" else (trade['entry'] - new_price)
-        pnl = pnl * 50 # Lot size
-        
-        st.info(f"OPEN POSITION: {trade['type']} | P&L: ₹{pnl:.2f}")
-        
-        if st.button("CLOSE POSITION"):
-            st.session_state.brain.memory['pnl'] += pnl
-            st.session_state.brain.save_memory()
-            st.session_state.active_trade = None
-            add_log(f"POSITION CLOSED | P&L: {pnl:.2f}", "warn")
-            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- RIGHT COLUMN: THREAT RADAR & LOGS ---
 with col_right:
-    st.markdown("### 📡 THREAT RADAR")
+    # --- METRICS PANEL ---
+    st.markdown('<div class="holo-card" style="text-align:center;">', unsafe_allow_html=True)
+    st.markdown("<span class='metric-lbl'>NIFTY 50 SPOT</span>", unsafe_allow_html=True)
+    st.markdown(f"<div class='metric-val'>{st.session_state.price:.2f}</div>", unsafe_allow_html=True)
     
-    # Trap Detector Animation
-    is_trap = ent > 0.8
-    radar_color = "#ff003c" if is_trap else "#00ff41"
-    radar_status = "TRAP DETECTED" if is_trap else "SAFE ZONE"
+    velocity = move
+    vel_color = "#10b981" if velocity > 0 else "#ef4444"
+    st.markdown(f"<br><span class='metric-lbl'>VELOCITY</span><br><span style='color:{vel_color}; font-size:1.5rem; font-weight:bold;'>{velocity:.2f}</span>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- JARVIS AI CHAT ---
+    st.markdown('<div class="holo-card">', unsafe_allow_html=True)
+    st.subheader("🤖 ASK JARVIS")
     
+    # If no secrets, ask for key
+    if not GEMINI_KEY:
+        GEMINI_KEY = st.text_input("🔑 API Key Required:", type="password")
+    
+    user_query = st.text_input("Command:", placeholder="e.g. Trend Status")
+    
+    if st.button("ACTIVATE NEURAL LINK"):
+        if not GEMINI_KEY:
+            st.error("⚠️ Gemini Key Missing!")
+        elif not user_query:
+            st.warning("⚠️ Enter command.")
+        else:
+            try:
+                genai.configure(api_key=GEMINI_KEY)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                prompt = f"Act as JARVIS for Boss Manikandan. Market Price: {st.session_state.price}. Query: {user_query}. Keep it robotic, short, and authoritative."
+                
+                with st.spinner("Processing..."):
+                    response = model.generate_content(prompt)
+                
+                st.success(f"🦁 **JARVIS:** {response.text}")
+                
+                # Voice Output (Browser Native TTS)
+                js_code = f"""
+                    <script>
+                        var msg = new SpeechSynthesisUtterance("{response.text.replace('"', '')}");
+                        var voices = window.speechSynthesis.getVoices();
+                        // Try to find a male English voice
+                        msg.voice = voices.find(v => v.name.includes("Google UK English Male")) || voices[0];
+                        window.speechSynthesis.speak(msg);
+                    </script>
+                """
+                st.components.v1.html(js_code, height=0)
+                
+            except Exception as e:
+                st.error(f"AI Error: {e}")
+                
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 8. APPROVAL SYSTEM (The Final Gate) ---
+# Logic: High Velocity triggers Approval Request
+signal = "WAIT"
+if velocity > 8: signal = "BUY CE"
+elif velocity < -8: signal = "BUY PE"
+
+if signal != "WAIT":
     st.markdown(f"""
-        <div class="radar" style="border-color: {radar_color}; box-shadow: 0 0 15px {radar_color};"></div>
-        <div style="text-align:center; margin-top:10px; font-weight:bold; color:{radar_color}">{radar_status}</div>
+        <div style="background:#1e1e2e; border:2px solid #f59e0b; padding:20px; border-radius:15px; text-align:center; animation:pulse 1s infinite; margin-top:20px;">
+            <h2 style="color:#f59e0b; margin:0;">⚠️ SIGNAL DETECTED: {signal}</h2>
+            <p style="color:#aaa;">Reason: High Velocity Momentum</p>
+        </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("### 🖥️ SYSTEM LOGS")
-    log_html = "".join([f"<div style='border-bottom:1px dashed #333; margin-bottom:5px;'>{l}</div>" for l in st.session_state.logs])
-    st.markdown(f"<div class='terminal-box'>{log_html}</div>", unsafe_allow_html=True)
+    # Approval Buttons
+    ac1, ac2 = st.columns(2)
+    with ac1:
+        if st.button(f"✅ APPROVE {signal}", use_container_width=True):
+            st.toast(f"Order Executed: {signal}", icon="🚀")
+            send_telegram(f"Trade Executed: {signal} @ {st.session_state.price}")
+            # Add Upstox order placement code here
+    with ac2:
+        if st.button("❌ REJECT", use_container_width=True):
+            st.toast("Trade Cancelled", icon="🛑")
+            send_telegram(f"Trade Rejected: {signal}")
 
-# Auto Refresh for Simulation Effect
+# --- 9. AUTO-REFRESH (Live Simulation) ---
 time.sleep(1)
 st.rerun()
