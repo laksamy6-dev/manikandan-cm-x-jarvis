@@ -1,12 +1,14 @@
 streamlit
 pandas
 numpy
-plotly
+plotly.graph_objects
 requests
-google-generativeai>=0.8.3
+google-generativeai
 pytz
 toml
 gtts
 scipy
 upstox-python-sdk
 watchdog
+base64
+collections
