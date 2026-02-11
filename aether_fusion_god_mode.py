@@ -494,5 +494,5 @@ if st.session_state.bot_active:
     l_html = "".join([l for l in st.session_state.live_logs])
     log_ph.markdown(f"<div class='terminal-box'>{l_html}</div>", unsafe_allow_html=True)
     
-    time.sleep(1) # [cite: 916]
+    time.sleep(3) # [cite: 916]
     if not st.session_state.pending_signal: st.rerun()
