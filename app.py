@@ -322,5 +322,5 @@ if st.session_state.bot_active:
         # *** THIS IS THE CRITICAL FIX FOR YOUR ERROR ***
         chart_ph.plotly_chart(fig, use_container_width=True, key=f"chart_{time.time()}")
         
-        time.sleep(0.2)
-        st.refresh()
+        time.sleep(1)
+    
