@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import google-genai
 import requests
+import google.generativeai as genai
 import time
 from datetime import datetime
 import pytz
