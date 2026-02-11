@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import requests
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import time
 from datetime import datetime
 import pytz
