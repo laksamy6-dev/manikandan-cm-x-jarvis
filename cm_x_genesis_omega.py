@@ -97,9 +97,13 @@ st.markdown("""
     }
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); } }
     
-    /* Status Box */
-    .status-connected { color: #00ff41; border: 1px solid #00ff41; padding: 5px; text-align: center; margin-bottom: 10px; }
-    .status-disconnected { color: #ff0000; border: 1px solid #ff0000; padding: 5px; text-align: center; margin-bottom: 10px; }
+    /* Input Box Styling */
+    .stTextInput>div>div>input {
+        background-color: #111;
+        color: #00ff41;
+        border: 1px solid #00ff41;
+        font-family: 'Fira Code', monospace;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -114,7 +118,7 @@ try:
     TELEGRAM_CHAT_ID = st.secrets["telegram"]["chat_id"]
     
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-pro')
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
 except Exception as e:
     st.error(f"⚠️ SYSTEM FAILURE: Secrets Error - {e}")
@@ -171,7 +175,7 @@ def speak_aether(text):
     """Converts text to speech and plays it in the browser"""
     try:
         brain['last_thought'] = text
-        add_log(f"AETHER SPEAKING: {text}", "warn")
+        add_log(f"JARVIS: {text}", "warn")
         
         tts = gTTS(text=text, lang='en', tld='co.in')
         filename = "ghost_voice.mp3"
@@ -202,12 +206,13 @@ def calculate_quantum_state(price_deque):
     return velocity, acceleration, energy, entropy
 
 # --- 8. GEMINI AI (THE GHOST PERSONA) ---
-def consult_ghost_brain(price, v, a, e, pnl):
+def consult_ghost_brain(query, price):
     try:
         prompt = f"""
-        You are 'AETHER', a digital ghost trading algo.
-        DATA: Price:{price}, V:{v:.2f}, A:{a:.2f}, Entropy:{e:.2f}, P&L:{pnl}.
-        Give trading advice in 1 mysterious sentence. Max 10 words.
+        You are 'AETHER', a high-frequency trading AI.
+        Current Price: {price}.
+        User asks: {query}.
+        Reply shortly and boldly as a trading assistant.
         """
         response = model.generate_content(prompt)
         return response.text
@@ -288,19 +293,18 @@ with c1:
 with c2:
     st.subheader("👻 Ghost Protocol")
     
-    # AI Speak Output
-    ai_text_ph = st.empty()
-    if st.button("🔊 CONSULT AETHER"):
-        if st.session_state.prices:
-            temp_prices = list(st.session_state.prices)
-            if len(temp_prices) > 2:
-                v, a, en, ent = calculate_quantum_state(st.session_state.prices)
-                p_curr = temp_prices[-1]
-                add_log("Consulting Gemini AI...", "info")
-                msg = consult_ghost_brain(p_curr, v, a, ent, st.session_state.pnl)
-                speak_aether(msg)
-                ai_text_ph.info(f"AETHER: {msg}")
-    
+    # --- NEW FEATURE: USER INPUT BAR ---
+    st.markdown("##### 🗣️ TALK TO JARVIS")
+    user_query = st.text_input("Message:", placeholder="Ask anything...", label_visibility="collapsed")
+    if st.button("SEND MESSAGE"):
+        if user_query:
+            # Get latest price for context
+            curr_p = st.session_state.prices[-1] if st.session_state.prices else 0
+            
+            add_log(f"BOSS: {user_query}", "info")
+            reply = consult_ghost_brain(user_query, curr_p)
+            speak_aether(reply)
+            
     st.write("---")
     pnl_display = st.empty()
     
@@ -434,6 +438,8 @@ if st.session_state.bot_active:
         if st.session_state.position:
             fig.add_hline(y=st.session_state.position['entry'], line_dash="dash", line_color="orange")
         fig.update_layout(height=350, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-        chart_ph.plotly_chart(fig, use_container_width=True)
+        
+        # --- FIX: ADDED KEY TO PREVENT CRASH ---
+        chart_ph.plotly_chart(fig, use_container_width=True, key=f"chart_{time.time()}")
         
         time.sleep(1)
