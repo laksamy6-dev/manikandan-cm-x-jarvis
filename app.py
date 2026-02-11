@@ -115,7 +115,7 @@ def send_telegram(msg):
 # --- 7. SMART AI ENGINE (AUTO-SWITCH FIX) ---
 def ask_gemini(prompt):
     """Tries multiple models to avoid 404 Errors"""
-    models_to_try = ['gemini-2.0-flash-lite', 'gemini-2.0-flash']
+    models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
     
     for model_name in models_to_try:
         try:
@@ -357,5 +357,5 @@ if st.session_state.bot_active:
         l_html = "".join([l for l in st.session_state.live_logs])
         log_ph.markdown(f"<div class='terminal-box'>{l_html}</div>", unsafe_allow_html=True)
         
-        time.sleep(1)
+        time.sleep(3)
         st.rerun()
