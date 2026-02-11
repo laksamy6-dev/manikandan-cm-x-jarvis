@@ -12,69 +12,21 @@ import os
 from gtts import gTTS
 import base64
 from collections import deque
+import math
+from scipy.stats import entropy as scipy_entropy
 
 # --- 1. SYSTEM CONFIGURATION ---
 st.set_page_config(
-    page_title="PROJECT AETHER: GOD MODE",
+    page_title="CM-X MEGA PREDATOR",
     layout="wide",
     page_icon="🧬",
     initial_sidebar_state="collapsed"
 )
 
-# TIMEZONE FIX (IST) - முக்கியம்!
+# TIMEZONE (IST)
 IST = pytz.timezone('Asia/Kolkata')
 
-# AETHER SYSTEM CONSTANTS
-MEMORY_FILE = "cm_x_aether_memory.json"
-MAX_HISTORY_LEN = 126 
-KILL_SWITCH_LOSS = -2000 
-
-# --- 2. ADVANCED CYBERPUNK STYLING ---
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
-    @import url('https://fonts.googleapis.com/css2?family=Fira+Code&display=swap');
-    
-    .stApp { background-color: #050505; color: #00ff41; font-family: 'Courier New', monospace; }
-    
-    /* Neon Text */
-    h1, h2, h3 { font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px #00ff41; color: #fff; }
-    
-    /* Metrics */
-    div[data-testid="stMetricValue"] {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 28px;
-        color: #00ff41;
-        text-shadow: 0 0 5px #00ff41;
-    }
-    div[data-testid="stMetric"] { background-color: #0a0a0a; border: 1px solid #333; box-shadow: 0 0 10px rgba(0, 255, 65, 0.1); }
-    
-    /* Live Terminal Log */
-    .terminal-box {
-        font-family: 'Fira Code', monospace; background-color: #000; border: 1px solid #333;
-        color: #00ff41; padding: 10px; height: 200px; overflow-y: auto; font-size: 14px;
-    }
-    
-    /* Buttons */
-    .stButton>button {
-        background-color: #000; color: #00ff41; border: 1px solid #00ff41;
-        font-family: 'Orbitron', sans-serif; height: 50px; width: 100%; transition: 0.3s;
-    }
-    .stButton>button:hover { background-color: #00ff41; color: #000; box-shadow: 0 0 20px #00ff41; }
-    
-    /* Active Trade Warning */
-    .active-trade-box {
-        border: 2px solid #ff0000; background-color: #220000; color: #ff4444;
-        padding: 15px; text-align: center; font-family: 'Orbitron'; animation: pulse 2s infinite;
-    }
-    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); } }
-    
-    /* Input Box */
-    .stTextInput>div>div>input { background-color: #111; color: #00ff41; border: 1px solid #00ff41; }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- 3. SECRETS LOADING ---
+# --- 2. SECRETS & API ---
 try:
     if "general" in st.secrets: OWNER_NAME = st.secrets["general"]["owner"]
     else: OWNER_NAME = "BOSS MANIKANDAN"
@@ -82,245 +34,314 @@ try:
     UPSTOX_ACCESS_TOKEN = st.secrets["upstox"]["access_token"]
     GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
     
-    # Optional Telegram
     if "telegram" in st.secrets:
         TG_TOKEN = st.secrets["telegram"]["bot_token"]
         TG_ID = st.secrets["telegram"]["chat_id"]
     else: TG_TOKEN = None; TG_ID = None
-    
+        
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
     
 except Exception as e:
-    st.error(f"⚠️ SYSTEM FAILURE: Secrets Error - {e}")
+    st.error(f"SECRETS ERROR: {e}")
     st.stop()
 
-UPSTOX_URL = "https://api.upstox.com/v2/market-quote/ltp"
+UPSTOX_URL = 'https://api.upstox.com/v2/market-quote/ltp'
 REQ_INSTRUMENT_KEY = "NSE_INDEX|Nifty 50"
+MEMORY_FILE = "cm_x_aether_memory.json"
+MAX_HISTORY_LEN = 300
 
-# --- 4. BLACK BOX MEMORY ---
-def init_aether_memory():
+# --- 3. STYLING ---
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css?family=Orbitron:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css?family=Fira+Code&display=swap');
+    .stApp { background-color: #050505; color: #e2e8f0; font-family: 'Fira Code', monospace; }
+    h1, h2, h3 { font-family: 'Orbitron', sans-serif; color: #f8fafc; text-shadow: 0 0 10px rgba(0, 255, 65, 0.3); }
+    div[data-testid="stMetric"] { background-color: #0a0a0a; border: 1px solid #333; border-radius: 10px; padding: 10px; box-shadow: 0 0 10px rgba(0, 255, 65, 0.1); }
+    div[data-testid="stMetricValue"] { color: #00ff41; font-family: 'Orbitron'; font-size: 26px; text-shadow: 0 0 5px #00ff41; }
+    .terminal-box { font-family: 'Fira Code', monospace; background-color: #000; color: #00ff41; padding: 15px; height: 250px; overflow-y: auto; border: 1px solid #333; }
+    .stButton>button { background-color: #000; color: #00ff41; border: 1px solid #00ff41; font-family: 'Orbitron'; height: 50px; width: 100%; transition: 0.3s; }
+    .stButton>button:hover { background-color: #00ff41; color: #000; box-shadow: 0 0 15px #00ff41; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 4. MEMORY ---
+def init_brain():
     if not os.path.exists(MEMORY_FILE):
-        return {"position": None, "orders": [], "pnl": 0.0, "daily_stats": {"wins": 0, "losses": 0}, "last_thought": "System Initialized."}
+        return {"total_pnl": 0.0, "wins": 0, "losses": 0, "order_book": [], "weights": {"Physics": 1.5, "Trend": 1.0, "Global": 1.2, "Chaos": 0.8}, "global_sentiment": "NEUTRAL"}
     try:
         with open(MEMORY_FILE, 'r') as f: return json.load(f)
-    except: return {"position": None, "orders": [], "pnl": 0.0, "daily_stats": {"wins":0, "losses":0}}
+    except: return init_brain()
 
-def save_aether_memory(pos, orders, pnl, stats, thought):
-    data = {"position": pos, "orders": orders, "pnl": pnl, "daily_stats": stats, "last_thought": thought}
-    with open(MEMORY_FILE, 'w') as f: json.dump(data, f)
+def save_brain(mem):
+    with open(MEMORY_FILE, 'w') as f: json.dump(mem, f, indent=4)
 
-brain = init_aether_memory()
+brain_memory = init_brain()
 
-# Session State
+# --- 5. STATE ---
 if 'prices' not in st.session_state: st.session_state.prices = deque(maxlen=MAX_HISTORY_LEN)
 if 'bot_active' not in st.session_state: st.session_state.bot_active = False
-if 'position' not in st.session_state: st.session_state.position = brain['position']
-if 'orders' not in st.session_state: st.session_state.orders = brain['orders']
-if 'pnl' not in st.session_state: st.session_state.pnl = brain['pnl']
+if 'position' not in st.session_state: st.session_state.position = None
+if 'pending_signal' not in st.session_state: st.session_state.pending_signal = None
 if 'audio_html' not in st.session_state: st.session_state.audio_html = ""
-if 'live_logs' not in st.session_state: st.session_state.live_logs = deque(maxlen=20)
+if 'live_logs' not in st.session_state: st.session_state.live_logs = deque(maxlen=50)
 if 'trailing_high' not in st.session_state: st.session_state.trailing_high = 0.0
 
-# --- 5. LOGGING (IST FIXED) ---
-def add_log(msg, type="info"):
-    timestamp = datetime.now(IST).strftime("%H:%M:%S") # IST Time Fix
-    color = "#00ff41"
-    if type == "warn": color = "#ffff00"
-    if type == "danger": color = "#ff0000"
-    st.session_state.live_logs.appendleft(f"<span style='color:#888'>[{timestamp}]</span> <span style='color:{color}'>{msg}</span>")
+# --- 6. AUDIO & LOGS ---
+def speak_aether(text):
+    try:
+        add_log(f"JARVIS: {text}", "log-ai")
+        tts = gTTS(text=text, lang='ta', tld='co.in') 
+        filename = "aether_voice.mp3"
+        tts.save(filename)
+        with open(filename, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        st.session_state.audio_html = f'<audio autoplay><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
+    except: pass
+
+def add_log(msg, css_class="log-info"):
+    ts = datetime.now(IST).strftime("%H:%M:%S")
+    color = "#0f0"
+    if "SELL" in msg: color = "#f00"
+    if "JARVIS" in msg: color = "#fc0"
+    entry = f"<span style='color:#666'>[{ts}]</span> <span style='color:{color}'>{msg}</span>"
+    st.session_state.live_logs.appendleft(entry)
 
 def send_telegram(msg):
     if TG_TOKEN and TG_ID:
         try: requests.get(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage", params={"chat_id": TG_ID, "text": f"🧬 CM-X: {msg}"})
         except: pass
 
-# --- 6. AUDIO ENGINE (GHOST VOICE) ---
-def speak_aether(text):
-    try:
-        brain['last_thought'] = text
-        add_log(f"JARVIS: {text}", "warn")
-        
-        # Tamil Voice Priority
-        tts = gTTS(text=text, lang='ta', tld='co.in')
-        filename = "ghost_voice.mp3"
-        tts.save(filename)
-        
-        with open(filename, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode()
-        st.session_state.audio_html = f'<audio autoplay><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
-    except: pass
+# --- 7. COGNITIVE ENGINE ---
+class CognitiveEngine:
+    def calculate_newton_metrics(self, prices_deque):
+        p = np.array(list(prices_deque))
+        if len(p) < 10: return 0.0, 0.0, 0.0
+        v = p[-1] - p[-2]
+        a = (p[-1] - p[-2]) - (p[-2] - p[-3])
+        if len(p) >= 20:
+            hist, _ = np.histogram(p[-20:], bins=10, density=True)
+            probs = hist / hist.sum()
+            probs = probs[probs > 0]
+            ent = scipy_entropy(probs)
+        else: ent = 0.0
+        return v, a, ent
 
-# --- 7. QUANTUM PHYSICS CORE (THE SHARP LOGIC) ---
-def calculate_quantum_state(price_deque):
-    if len(price_deque) < 10: return 0, 0, 0, 0
-    p = np.array(price_deque)
-    velocity = np.diff(p)[-1]
-    acceleration = np.diff(np.diff(p))[-1] if len(p) > 2 else 0
-    energy = abs(velocity) * 100 
-    entropy = np.std(p[-10:])
-    return velocity, acceleration, energy, entropy
+    def monte_carlo_simulation(self, prices_deque, num_sims=100):
+        p = np.array(list(prices_deque))
+        if len(p) < 20: return 0.5
+        last = p[-1]
+        returns = np.diff(p)/p[:-1]
+        mu = np.mean(returns); sigma = np.std(returns)
+        bull_paths = 0
+        for _ in range(num_sims):
+            sim_p = last
+            for _ in range(5):
+                sim_p *= (1 + np.random.normal(mu, sigma))
+            if sim_p > last: bull_paths += 1
+        return bull_paths / num_sims
 
-# --- 8. GEMINI AI (CHAT) ---
-def consult_ghost_brain(query, price):
-    try:
-        prompt = f"You are AETHER (Tamil Trading Bot). Price: {price}. User: {query}. Reply in Tamil."
-        return model.generate_content(prompt).text
-    except: return "Connection Lost."
+    def get_best_option_strike(self, spot, direction):
+        strike = round(spot/50)*50
+        return f"{strike} CE" if direction == "BUY" else f"{strike} PE"
 
-# --- 9. DATA FETCHING ---
+aether_engine = CognitiveEngine()
+
+# --- 8. LIVE DATA ---
 def get_live_market_data():
-    if not UPSTOX_ACCESS_TOKEN: return None, "NO TOKEN"
+    if not UPSTOX_ACCESS_TOKEN: return None
     headers = {'Authorization': f'Bearer {UPSTOX_ACCESS_TOKEN}', 'Accept': 'application/json'}
     try:
         res = requests.get(UPSTOX_URL, headers=headers, params={'instrument_key': REQ_INSTRUMENT_KEY}, timeout=3)
         if res.status_code == 200:
             data = res.json()['data']
             key = list(data.keys())[0]
-            return float(data[key]['last_price']), "CONNECTED"
+            return float(data[key]['last_price'])
     except: pass
-    return None, "ERROR"
+    return None
 
-# --- 10. UI LAYOUT ---
+# --- 9. UI LAYOUT ---
 st.markdown(f"""
-<div style="text-align: center;">
-    <h1>PROJECT AETHER: GOD MODE</h1>
-    <p style="color: #00ff41;">OPERATOR: {OWNER_NAME} | SYSTEM: <b>ONLINE</b></p>
+<div style="text-align: center; border-bottom: 2px solid #00ff41; padding-bottom: 10px;">
+    <h1>AETHER: FUSION GOD MODE</h1>
+    <p style="color:#888;">OPERATOR: {OWNER_NAME} | SYSTEM: ONLINE</p>
 </div>
 """, unsafe_allow_html=True)
 st.markdown(st.session_state.audio_html, unsafe_allow_html=True)
 
-# Active Trade Alert
-if st.session_state.position:
-    pos = st.session_state.position
-    st.markdown(f"""<div class="active-trade-box"><h3>⚠ TRADE ACTIVE: {pos['type']} @ {pos['entry']}</h3></div>""", unsafe_allow_html=True)
-
-c1, c2 = st.columns([2, 1])
+c1, c2 = st.columns([2.5, 1])
 
 with c1:
-    st.subheader("📊 Schrödinger Wave Function")
+    st.subheader("📡 QUANTUM TRAJECTORY")
     chart_ph = st.empty()
-    m1, m2, m3, m4 = st.columns(4)
-    p_metric = m1.empty(); v_metric = m2.empty(); a_metric = m3.empty(); e_metric = m4.empty()
     
-    st.write("---")
-    st.subheader("🖥️ LIVE TERMINAL")
+    m1, m2, m3, m4 = st.columns(4)
+    p_met = m1.empty(); v_met = m2.empty(); a_met = m3.empty(); e_met = m4.empty()
+    
+    st.subheader("🏛️ THE COUNCIL CHAMBER")
+    council_ph = st.empty()
+    
+    st.subheader("🖥️ NEURAL LOGS")
     log_ph = st.empty()
+    
+    # --- NEW: ORDER BOOK ---
+    st.subheader("📖 ORDER BOOK")
+    if brain_memory["order_book"]:
+        order_df = pd.DataFrame(brain_memory["order_book"])
+        st.dataframe(order_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("No Trades Yet")
 
 with c2:
     st.subheader("👻 JARVIS LINK")
-    
-    # JARVIS INPUT (The Feature You Asked For)
-    user_q = st.text_input("Talk to Jarvis:", placeholder="Type here...")
-    if st.button("SEND COMMAND"):
+    user_q = st.text_input("Consult Jarvis:", placeholder="Type here...")
+    if st.button("SEND MESSAGE"):
         if user_q:
-            p = st.session_state.prices[-1] if st.session_state.prices else 0
             add_log(f"BOSS: {user_q}", "info")
-            rep = consult_ghost_brain(user_q, p)
-            speak_aether(rep)
-            
+            try:
+                p = st.session_state.prices[-1] if st.session_state.prices else 0
+                ans = gemini_model.generate_content(f"You are Jarvis (Tamil). Price: {p}. User: {user_q}. Reply briefly in Tamil.").text
+                speak_aether(ans)
+            except Exception as e: speak_aether(f"Connection Error: {e}")
+
     st.write("---")
-    pnl_display = st.empty()
+    curr_sent = brain_memory.get("global_sentiment", "NEUTRAL")
+    new_sent = st.select_slider("Global Sentiment", ["BEARISH", "NEUTRAL", "BULLISH"], value=curr_sent)
+    if new_sent != curr_sent:
+        brain_memory["global_sentiment"] = new_sent
+        save_brain(brain_memory)
+        
+    pnl_ph = st.empty()
     
-    # Controls
     b1, b2 = st.columns(2)
-    start_btn = b1.button("🔥 INITIATE")
-    stop_btn = b2.button("🛑 KILL SWITCH")
+    start = b1.button("🔥 INITIATE")
+    stop = b2.button("🛑 KILL SWITCH")
     
-    if st.button("❌ EMERGENCY EXIT"):
-        st.session_state.position = None
-        speak_aether("Emergency Exit.")
-        st.rerun()
+    approval_ph = st.empty()
 
-# Control Logic
-if start_btn: st.session_state.bot_active = True
-if stop_btn: st.session_state.bot_active = False
+if start: st.session_state.bot_active = True
+if stop: st.session_state.bot_active = False
 
-# --- 11. MAIN LOOP ---
+# --- 10. MAIN LOOP ---
 if st.session_state.bot_active:
     
-    price, status = get_live_market_data()
-    if status == "CONNECTED":
+    price = get_live_market_data()
+    if price:
         st.session_state.prices.append(price)
         
-        # 1. PHYSICS
-        v, a, energy, entropy = calculate_quantum_state(st.session_state.prices)
+        v, a, ent = aether_engine.calculate_newton_metrics(st.session_state.prices)
         
-        # 2. DECISION (The Sharp Logic)
-        # Entry
-        if st.session_state.position is None:
-            # STRICT ENTRY RULES (Chaos < 10, V > 1.5)
-            if v > 1.5 and a > 0.3 and entropy < 10:
-                st.session_state.position = {"type": "BUY", "entry": price, "qty": 50}
-                st.session_state.trailing_high = 0.0
-                speak_aether(f"Momentum High. Buying at {price}")
-                add_log("EXECUTING BUY ORDER", "warn")
-                send_telegram(f"BUY: {price}")
-                st.rerun()
-                
-            elif v < -1.5 and a < -0.3 and entropy < 10:
-                st.session_state.position = {"type": "SELL", "entry": price, "qty": 50}
-                st.session_state.trailing_high = 0.0
-                speak_aether(f"Gravity High. Selling at {price}")
-                add_log("EXECUTING SELL ORDER", "warn")
-                send_telegram(f"SELL: {price}")
-                st.rerun()
-                
-        # Exit (Zero Loss Logic)
+        # VOTES
+        votes = {}
+        if v > 1.5 and a > 0.3: votes['Physics'] = "BUY"
+        elif v < -1.5 and a < -0.3: votes['Physics'] = "SELL"
+        else: votes['Physics'] = "WAIT"
+        
+        if len(st.session_state.prices) > 20:
+            ma = np.mean(list(st.session_state.prices)[-20:])
+            if price > ma: votes['Trend'] = "BUY"
+            else: votes['Trend'] = "SELL"
+            
+        gs = brain_memory["global_sentiment"]
+        if gs == "BULLISH": votes['Global'] = "BUY"
+        elif gs == "BEARISH": votes['Global'] = "SELL"
+        else: votes['Global'] = "WAIT"
+        
+        # SIGNAL
+        if ent > 1.5: votes['Chaos'] = "RISKY"
         else:
+            votes['Chaos'] = "GO"
+            buy_score = list(votes.values()).count("BUY")
+            sell_score = list(votes.values()).count("SELL")
+            
+            if buy_score >= 2 and not st.session_state.position and not st.session_state.pending_signal:
+                opt = aether_engine.get_best_option_strike(price, "BUY")
+                st.session_state.pending_signal = {"type": "BUY", "opt": opt}
+                speak_aether(f"Boss! Buy Signal on {opt}. Approval venum.")
+                send_telegram(f"BUY ALERT: {opt}")
+                
+            elif sell_score >= 2 and not st.session_state.position and not st.session_state.pending_signal:
+                opt = aether_engine.get_best_option_strike(price, "SELL")
+                st.session_state.pending_signal = {"type": "SELL", "opt": opt}
+                speak_aether(f"Boss! Sell Signal on {opt}. Approval venum.")
+                send_telegram(f"SELL ALERT: {opt}")
+
+        # APPROVAL
+        if st.session_state.pending_signal:
+            sig = st.session_state.pending_signal
+            with approval_ph.container():
+                st.warning(f"⚠️ EXECUTE {sig['opt']}?")
+                c1, c2 = st.columns(2)
+                if c1.button("✅ YES"):
+                    st.session_state.position = {"type": sig['type'], "entry": price, "opt": sig['opt']}
+                    st.session_state.trailing_high = 0.0
+                    st.session_state.pending_signal = None
+                    
+                    # Log Order
+                    order = {"Time": datetime.now(IST).strftime("%H:%M:%S"), "Type": sig['type'], "Price": price, "Status": "OPEN", "PNL": 0}
+                    brain_memory["order_book"].append(order)
+                    save_brain(brain_memory)
+                    
+                    speak_aether("Order Placed.")
+                    st.rerun()
+                if c2.button("❌ NO"):
+                    st.session_state.pending_signal = None
+                    st.rerun()
+
+        # TRAILING & EXIT
+        if st.session_state.position:
             pos = st.session_state.position
-            pnl = (price - pos['entry']) * pos['qty'] if pos['type'] == "BUY" else (pos['entry'] - price) * pos['qty']
+            pnl = (price - pos['entry']) * 50 if pos['type'] == "BUY" else (pos['entry'] - price) * 50
             
             if pnl > st.session_state.trailing_high: st.session_state.trailing_high = pnl
             high = st.session_state.trailing_high
             
             exit = False; reason = ""
-            
-            # THE RULES
             if high > 500 and pnl < 200: exit = True; reason = "ZERO LOSS HIT"
             elif high > 1000 and pnl < high*0.7: exit = True; reason = "TRAILING HIT"
             elif pnl < -300: exit = True; reason = "STOP LOSS"
-            elif (pos['type']=="BUY" and v < -1.5): exit = True; reason = "REVERSAL"
-            elif (pos['type']=="SELL" and v > 1.5): exit = True; reason = "REVERSAL"
             
             if exit:
-                st.session_state.pnl += pnl
-                brain['daily_stats']['wins' if pnl>0 else 'losses'] += 1
-                save_aether_memory(None, st.session_state.orders, st.session_state.pnl, brain['daily_stats'], f"Closed: {reason}")
-                
                 st.session_state.position = None
+                brain_memory["total_pnl"] += pnl
+                
+                # Update Order Book
+                if brain_memory["order_book"]:
+                    brain_memory["order_book"][-1]["Status"] = "CLOSED"
+                    brain_memory["order_book"][-1]["PNL"] = pnl
+                
+                save_brain(brain_memory)
                 speak_aether(f"Trade Closed. {reason}. PNL: {pnl}")
-                add_log(f"CLOSED: {reason}", "danger")
-                send_telegram(f"CLOSED: {pnl}")
+                send_telegram(f"EXIT: {pnl}")
                 st.rerun()
 
-        # 3. UI UPDATE
-        p_metric.metric("NIFTY 50", f"{price:,.2f}", f"{v:.2f}")
-        v_metric.metric("VELOCITY", f"{v:.2f}")
-        a_metric.metric("ACCEL", f"{a:.2f}")
-        e_metric.metric("ENTROPY", f"{entropy:.2f}")
+        # UI UPDATE
+        p_met.metric("NIFTY 50", f"{price:,.2f}", f"{v:.2f}")
+        v_met.metric("VELOCITY", f"{v:.2f}")
+        a_met.metric("ACCEL", f"{a:.2f}")
+        e_met.metric("ENTROPY", f"{ent:.2f}")
         
-        # PNL Display
-        curr_pnl = 0.0
-        if st.session_state.position:
-            pos = st.session_state.position
-            curr_pnl = (price - pos['entry']) * pos['qty'] if pos['type'] == "BUY" else (pos['entry'] - price) * pos['qty']
-        tot = st.session_state.pnl + curr_pnl
-        pnl_display.markdown(f"<h1 style='color:{'#0f0' if tot>=0 else '#f00'}; text-align:center;'>PNL: ₹{tot:.2f}</h1>", unsafe_allow_html=True)
+        with council_ph.container():
+            cols = st.columns(4)
+            i = 0
+            for k, v in votes.items():
+                cols[i].markdown(f"<div style='border:1px solid #333; text-align:center; color:{'#0f0' if v=='BUY' else '#f00'};'>{k}<br>{v}</div>", unsafe_allow_html=True)
+                i+=1
+                if i>=4: break
+
+        val = brain_memory["total_pnl"]
+        pnl_ph.markdown(f"<h2 style='text-align:center; color:{'#0f0' if val>=0 else '#f00'}'>PNL: ₹{val:,.2f}</h2>", unsafe_allow_html=True)
         
-        # Logs
-        l_html = "".join([l for l in st.session_state.live_logs])
-        log_ph.markdown(f'<div class="terminal-box">{l_html}</div>', unsafe_allow_html=True)
-        
-        # Chart (With CRASH FIX)
         fig = go.Figure()
         fig.add_trace(go.Scatter(y=list(st.session_state.prices), mode='lines', line=dict(color='#00ff41', width=2)))
         if st.session_state.position:
             fig.add_hline(y=st.session_state.position['entry'], line_dash="dash", line_color="orange")
-        fig.update_layout(height=350, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)')
-        
-        # *** THIS IS THE CRITICAL FIX FOR YOUR ERROR ***
+        fig.update_layout(height=250, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)')
         chart_ph.plotly_chart(fig, use_container_width=True, key=f"chart_{time.time()}")
         
+        l_html = "".join([l for l in st.session_state.live_logs])
+        log_ph.markdown(f"<div class='terminal-box'>{l_html}</div>", unsafe_allow_html=True)
+        
         time.sleep(1)
-    
+        st.rerun()
