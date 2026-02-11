@@ -417,5 +417,5 @@ if st.session_state.bot_active:
     log_html = "".join([l for l in st.session_state.live_logs])
     log_ph.markdown(f'<div style="height:200px; overflow-y:auto; border:2px solid #000; padding:5px;">{log_html}</div>', unsafe_allow_html=True)
 
-    time.sleep(8)
+    time.sleep(3)
     if not st.session_state.pending_signal: st.rerun()
