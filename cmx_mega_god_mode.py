@@ -12,487 +12,494 @@ import os
 from gtts import gTTS
 import base64
 from collections import deque
-import math
 import random
-from scipy.stats import entropy as scipy_entropy
+from scipy.stats import entropy
 
-# --- 1. SYSTEM CONFIGURATION (PDF Page 1) [cite: 19-25] ---
+# ==========================================
+# 1. SYSTEM CONFIGURATION (DARK NEON MODE)
+# ==========================================
 st.set_page_config(
-    page_title="AETHER: FUSION GOD MODE",
+    page_title="CM-X MEGA PREDATOR",
     layout="wide",
-    page_icon="🧬",
+    page_icon="💀",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. GLOBAL CONSTANTS (PDF Page 2) [cite: 27-31] ---
-MEMORY_FILE = "cm_x_aether_memory.json"
-MAX_HISTORY_LEN = 300
-TELEGRAM_INTERVAL = 120 # 2 Minutes
-KILL_SWITCH_LOSS = -2000
-TRADE_QUANTITY = 50
-TIMEZONE = pytz.timezone('Asia/Kolkata')
-
-# --- 3. SECRETS & API SETUP (PDF Page 2-3) [cite: 34-58] ---
+# ==========================================
+# 2. SECRETS & LIVE API SETUP
+# ==========================================
 try:
-    if "general" in st.secrets: OWNER_NAME = st.secrets["general"]["owner"]
-    else: OWNER_NAME = "BOSS MANIKANDAN"
-    
+    # UPSTOX LIVE CREDENTIALS
     UPSTOX_ACCESS_TOKEN = st.secrets["upstox"]["access_token"]
+    
+    # GEMINI AI
     GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
-    
-    if "telegram" in st.secrets:
-        TELEGRAM_BOT_TOKEN = st.secrets["telegram"]["bot_token"]
-        TELEGRAM_CHAT_ID = st.secrets["telegram"]["chat_id"]
-    else:
-        TELEGRAM_BOT_TOKEN = None
-        TELEGRAM_CHAT_ID = None
-        
     genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-1.5-flash') # Fast model for live trading
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
-except Exception as e:
-    st.error(f"SYSTEM FAILURE: Secrets Error - {e}")
+    # TELEGRAM (OPTIONAL)
+    if "telegram" in st.secrets:
+        TG_BOT_TOKEN = st.secrets["telegram"]["bot_token"]
+        TG_CHAT_ID = st.secrets["telegram"]["chat_id"]
+    else:
+        TG_BOT_TOKEN = None; TG_CHAT_ID = None
+except:
+    st.error("⚠️ SYSTEM ERROR: Secrets Missing! Check .streamlit/secrets.toml")
     st.stop()
 
-UPSTOX_URL = 'https://api.upstox.com/v2/market-quote/ltp'
-REQ_INSTRUMENT_KEY = "NSE_INDEX|Nifty 50"
+# UPSTOX CONFIGURATION
+UPSTOX_URL = "https://api.upstox.com/v2/market-quote/ltp"
+REQ_INSTRUMENT_KEY = "NSE_INDEX|Nifty 50" # NIFTY 50 LIVE
+MEMORY_FILE = "cm_x_mega_brain.json"
 
-# --- 4. ADVANCED CYBERPUNK STYLING (DIM & NEON) (PDF Page 3-9) [cite: 62-211] ---
+# ==========================================
+# 3. ADVANCED NEON CSS (THE LOOK)
+# ==========================================
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css?family=Orbitron:wght@400;700&display=swap');
-    @import url('https://fonts.googleapis.com/css?family=Fira+Code&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap');
     
-    /* BASE APP STYLING - Dim Dark Blue-Grey (Eye Friendly) */
-    .stApp {
+    /* GLOBAL DARK THEME */
+    .stApp { 
         background-color: #050505; 
-        color: #e2e8f0;
-        font-family: 'Fira Code', monospace;
+        color: #00ff41; 
+        font-family: 'Rajdhani', sans-serif; 
     }
     
-    /* HEADINGS */
-    h1, h2, h3 {
-        font-family: 'Orbitron', sans-serif;
-        color: #f8fafc;
-        text-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
+    /* HEADERS */
+    h1, h2, h3 { 
+        font-family: 'Orbitron', sans-serif; 
+        text-shadow: 0 0 10px #00ff41; 
+        color: #fff; 
+        border-bottom: 1px solid #333;
     }
     
-    /* METRIC CARDS */
+    /* METRIC CARDS (NEON BOXES) */
     div[data-testid="stMetric"] {
         background-color: #0a0a0a;
         border: 1px solid #333;
-        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 255, 65, 0.1);
+        border-radius: 8px;
         padding: 10px;
-        box-shadow: 0 0 10px rgba(0, 255, 65, 0.1);
     }
     div[data-testid="stMetricValue"] {
-        color: #00ff41; /* Neon Green */
         font-family: 'Orbitron', sans-serif;
-        font-size: 26px;
+        font-size: 28px;
+        color: #00ff41;
         text-shadow: 0 0 5px #00ff41;
     }
     div[data-testid="stMetricLabel"] { color: #888; font-weight: bold; }
     
-    /* AGENT CARDS (THE COUNCIL) */
+    /* THE COUNCIL AGENT CARDS */
     .agent-card {
-        background: #111; border: 1px solid #333; padding: 10px;
-        text-align: center; border-radius: 5px; margin-bottom: 5px;
-        font-family: 'Orbitron'; font-size: 12px; color: #fff;
+        background: #111; border: 1px solid #333; padding: 10px; 
+        text-align: center; border-radius: 5px; font-family: 'Orbitron';
+        margin-bottom: 5px; transition: all 0.3s;
     }
-    .BUY { border-color: #00ff41; color: #00ff41; box-shadow: 0 0 8px #00ff41; }
-    .SELL { border-color: #ff003c; color: #ff003c; box-shadow: 0 0 8px #ff003c; }
-    .WAIT { border-color: #fbbf24; color: #fbbf24; }
-    .GO { border-color: #c084fc; color: #c084fc; } /* Chaos GO */
+    .agent-buy { border-color: #00ff41; color: #00ff41; box-shadow: 0 0 10px #00ff41; }
+    .agent-sell { border-color: #ff003c; color: #ff003c; box-shadow: 0 0 10px #ff003c; }
+    .agent-wait { border-color: #555; color: #555; }
+    
+    /* APPROVAL FLASHING BOX */
+    .approval-box {
+        border: 2px solid #ffff00;
+        background-color: #222200;
+        color: #ffff00;
+        padding: 20px;
+        text-align: center;
+        border-radius: 10px;
+        font-family: 'Orbitron';
+        animation: pulse 1s infinite;
+        margin-bottom: 20px;
+    }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 255, 0, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 255, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 255, 0, 0); } }
 
-    /* TERMINAL LOG BOX */
+    /* TERMINAL LOGS */
     .terminal-box {
-        font-family: 'Fira Code', monospace;
+        font-family: 'Courier New', monospace;
         background-color: #000;
+        border: 1px solid #333;
         color: #00ff41;
-        padding: 15px;
+        padding: 10px;
         height: 250px;
         overflow-y: auto;
-        border: 1px solid #333;
-        border-radius: 5px;
-        box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+        font-size: 13px;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
     }
-    .log-time { color: #555; margin-right: 10px; }
-    .log-buy { color: #00ff41; font-weight: bold; }
-    .log-sell { color: #ff003c; font-weight: bold; }
-    .log-ai { color: #c084fc; font-style: italic; }
-    
-    /* APPROVAL BOX */
-    .approval-box {
-        border: 2px solid #fbbf24; background-color: #222200;
-        color: #fbbf24; padding: 15px; text-align: center;
-        font-family: 'Orbitron'; animation: pulse 1s infinite;
-        border-radius: 10px; margin-bottom: 10px;
-    }
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     
     /* BUTTONS */
     .stButton>button {
-        background-color: #000; color: #00ff41; border: 1px solid #00ff41;
-        font-family: 'Orbitron'; height: 50px; width: 100%; transition: 0.3s;
+        background-color: #000;
+        color: #00ff41;
+        border: 1px solid #00ff41;
+        font-family: 'Orbitron', sans-serif;
+        height: 50px;
+        width: 100%;
+        transition: 0.3s;
     }
     .stButton>button:hover {
-        background-color: #00ff41; color: #000; box-shadow: 0 0 15px #00ff41;
+        background-color: #00ff41;
+        color: #000;
+        box-shadow: 0 0 20px #00ff41;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. MEMORY SYSTEM (PDF Page 9-11) [cite: 213-256] ---
-def init_brain():
+# ==========================================
+# 4. BLACK BOX MEMORY & STATE
+# ==========================================
+def init_memory():
     if not os.path.exists(MEMORY_FILE):
-        data = {
+        return {
             "total_pnl": 0.0,
-            "wins": 0, "losses": 0,
             "trade_log": [],
-            "weights": {"Physics": 1.5, "Trend": 1.0, "Global": 1.2, "Chaos": 0.8, "WinProb": 1.0},
+            "weights": {"Physics": 1.5, "Trend": 1.0, "Global": 1.0, "Chaos": 0.8},
             "global_sentiment": "NEUTRAL",
-            "market_knowledge": "System Initialized.",
-            "pending_signal": None,
-            "trailing_high": 0.0,
-            "last_tg_time": time.time(),
-            "bot_active_on_exit": False
+            "market_knowledge": "System Initialized."
         }
-        with open(MEMORY_FILE, 'w') as f: json.dump(data, f)
-        return data
-    else:
-        try:
-            with open(MEMORY_FILE, 'r') as f: return json.load(f)
-        except: return init_brain()
-
-def save_brain(mem_data):
-    with open(MEMORY_FILE, 'w') as f: json.dump(mem_data, f, indent=4)
-
-brain_memory = init_brain()
-
-# --- 6. SESSION STATE (PDF Page 11) [cite: 259-269] ---
-if 'prices' not in st.session_state: st.session_state.prices = deque(maxlen=MAX_HISTORY_LEN)
-if 'bot_active' not in st.session_state: st.session_state.bot_active = brain_memory.get("bot_active_on_exit", False)
-if 'position' not in st.session_state: st.session_state.position = None
-if 'pending_signal' not in st.session_state: st.session_state.pending_signal = brain_memory.get("pending_signal", None)
-if 'audio_html' not in st.session_state: st.session_state.audio_html = ""
-if 'live_logs' not in st.session_state: st.session_state.live_logs = deque(maxlen=50)
-if 'trailing_high' not in st.session_state: st.session_state.trailing_high = brain_memory.get("trailing_high", 0.0)
-if 'last_tg_time' not in st.session_state: st.session_state.last_tg_time = brain_memory.get("last_tg_time", time.time())
-
-# --- 7. AUDIO & LOGS & TELEGRAM (PDF Page 11-13) [cite: 271-305] ---
-def speak_aether(text):
     try:
-        brain_memory["market_knowledge"] = f"AETHER: {text}"
-        add_log(f"AETHER: {text}", "log-ai")
+        with open(MEMORY_FILE, 'r') as f: return json.load(f)
+    except: return init_memory()
+
+def save_memory(mem):
+    with open(MEMORY_FILE, 'w') as f: json.dump(mem, f, indent=4)
+
+brain_memory = init_memory()
+
+# STATE INITIALIZATION
+if 'prices' not in st.session_state: st.session_state.prices = deque(maxlen=300)
+if 'bot_active' not in st.session_state: st.session_state.bot_active = False
+if 'position' not in st.session_state: st.session_state.position = None
+if 'pending_signal' not in st.session_state: st.session_state.pending_signal = None
+if 'audio_html' not in st.session_state: st.session_state.audio_html = ""
+if 'live_logs' not in st.session_state: st.session_state.live_logs = deque(maxlen=30)
+if 'trailing_high' not in st.session_state: st.session_state.trailing_high = 0.0
+
+# ==========================================
+# 5. AUDIO & TELEGRAM
+# ==========================================
+def speak_jarvis(text):
+    try:
         tts = gTTS(text=text, lang='en', tld='co.in')
-        filename = "aether.mp3"
+        filename = "alert.mp3"
         tts.save(filename)
         with open(filename, "rb") as f: b64 = base64.b64encode(f.read()).decode()
-        st.session_state.audio_html = f'<audio autoplay><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
+        md = f"""<audio autoplay style="display:none;"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>"""
+        st.session_state.audio_html = md
     except: pass
 
-def add_log(msg, css_class="log-info"):
-    ts = datetime.now(TIMEZONE).strftime("%H:%M:%S")
-    entry = f"<div class='log-row'><span class='log-time'>{ts}</span> <span class='{css_class}'>{msg}</span></div>"
-    st.session_state.live_logs.appendleft(entry)
+def add_log(msg, type="info"):
+    ts = datetime.now().strftime("%H:%M:%S")
+    color = "#00ff41" if type=="info" else "#ff003c" if type=="danger" else "#ffff00"
+    st.session_state.live_logs.appendleft(f"<span style='color:#555'>[{ts}]</span> <span style='color:{color}'>{msg}</span>")
 
-def send_telegram_report(msg):
-    if not TELEGRAM_BOT_TOKEN: return
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    try: requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": f"🦅 CM-X: {msg}"}, timeout=5)
-    except: pass
+def send_telegram(msg):
+    if TG_BOT_TOKEN and TG_CHAT_ID:
+        try: requests.get(f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage", params={"chat_id": TG_CHAT_ID, "text": f"🦅 CM-X: {msg}"})
+        except: pass
 
-# --- 8. COGNITIVE ENGINE (MATH CORE) (PDF Page 13-17) [cite: 307-388] ---
-class CognitiveEngine:
-    def calculate_newton_metrics(self, prices_deque):
-        p = np.array(list(prices_deque))
-        if len(p) < 10: return 0.0, 0.0, 0.0
-        v = p[-1] - p[-2]
-        a = (p[-1] - p[-2]) - (p[-2] - p[-3])
-        # Entropy
-        if len(p) >= 20:
-            hist, _ = np.histogram(p[-20:], bins=10, density=True)
+# ==========================================
+# 6. THE MEGA BRAIN (LOGIC CORE)
+# ==========================================
+class MegaBrain:
+    
+    def calculate_physics(self, prices):
+        # Newton's Law of Market (From PDF)
+        p = np.array(list(prices))
+        if len(p) < 10: return 0, 0, 0
+        
+        # Velocity (Speed)
+        v = np.diff(p)[-1]
+        # Acceleration (Force)
+        a = np.diff(np.diff(p))[-1]
+        
+        # Entropy (Chaos Theory)
+        try:
+            hist, _ = np.histogram(p[-30:], bins=10, density=True)
             probs = hist / hist.sum()
             probs = probs[probs > 0]
-            ent = scipy_entropy(probs)
-        else: ent = 0.0
-        return v, a, ent
+            entropy_val = -np.sum(probs * np.log(probs))
+        except: entropy_val = 0
+        
+        return v, a, entropy_val
 
-    def monte_carlo_simulation(self, prices_deque, num_sims=100):
-        p = np.array(list(prices_deque))
-        if len(p) < 20: return 0.5
-        last = p[-1]
-        returns = np.diff(p)/p[:-1]
-        mu = np.mean(returns); sigma = np.std(returns)
-        bull_paths = 0
-        for _ in range(num_sims):
-            sim_p = last
-            for _ in range(10): # 10 steps
-                sim_p *= (1 + np.random.normal(mu, sigma))
-            if sim_p > last: bull_paths += 1
-        return bull_paths / num_sims
+    def monte_carlo_simulation(self, prices):
+        # 3-Step Future Prediction (From PDF)
+        data = list(prices)
+        last = data[-1]
+        vol = np.std(data[-20:]) if len(data)>20 else 5
+        
+        # Simulate 100 Paths
+        paths = [last + np.random.normal(0, vol) for _ in range(100)]
+        return np.mean(paths) # Average Predicted Price
 
-    def rocket_formula(self, v, vol_curr, vol_avg):
-        if vol_avg == 0: vol_avg = 1
-        ratio = abs(vol_curr/vol_avg)
-        return v * math.log(ratio + 1)
+    def get_auto_strike(self, spot_price, direction):
+        # Automatic Option Selection
+        strike = round(spot_price / 50) * 50
+        if direction == "BUY": return f"{strike} CE"
+        else: return f"{strike} PE"
 
-    def get_best_option_strike(self, spot, direction):
-        strike = round(spot/50)*50
-        return f"{strike} CE" if direction == "BUY" else f"{strike} PE"
-
-    def self_correct(self, result):
+    def self_improve(self, result):
+        # Self Correction Logic
         w = brain_memory["weights"]
-        lr = 0.05
+        factor = 0.05
         if result == "WIN":
-            for k in w: w[k] = min(2.0, w[k] + lr)
+            w["Physics"] += factor
+            w["Trend"] += factor
             brain_memory["market_knowledge"] += " | Pattern Validated."
         else:
-            for k in w: w[k] = max(0.5, w[k] - lr)
-            brain_memory["market_knowledge"] += " | Pattern Failed."
-        save_brain(brain_memory)
+            w["Physics"] -= factor
+            w["Trend"] -= factor
+            brain_memory["market_knowledge"] += " | Pattern Failed. Weights Reduced."
+        save_memory(brain_memory)
 
-aether_engine = CognitiveEngine()
+brain = MegaBrain()
 
-# --- 9. AI CONSULTATION (PDF Page 17-18)  ---
-def consult_ai(query, price=None, v=None):
-    if not GEMINI_API_KEY: return "AI Offline."
-    ctx = f"You are AETHER. PnL: {brain_memory['total_pnl']}. Price: {price}. Velocity: {v}. User: {query}"
-    try:
-        return gemini_model.generate_content(ctx).text
-    except: return "Connection Error."
-
-# --- 10. LIVE DATA FETCH (PDF Page 18-20) [cite: 420-461] ---
-def get_live_market_data():
-    if not UPSTOX_ACCESS_TOKEN:
-        # Simulation Fallback
-        last = st.session_state.prices[-1] if st.session_state.prices else 22100.0
-        return last + np.random.normal(0, 5), "SIMULATING"
-    
+# ==========================================
+# 7. LIVE DATA FETCHER (UPSTOX)
+# ==========================================
+def get_live_data():
+    # THIS IS THE LIVE CONNECTION CODE
     headers = {'Authorization': f'Bearer {UPSTOX_ACCESS_TOKEN}', 'Accept': 'application/json'}
     try:
-        res = requests.get(UPSTOX_URL, headers=headers, params={'instrument_key': REQ_INSTRUMENT_KEY}, timeout=3)
+        res = requests.get(UPSTOX_URL, headers=headers, params={'instrument_key': REQ_INSTRUMENT_KEY}, timeout=2)
         if res.status_code == 200:
-            data = res.json()['data']
-            # Handle key variations
-            k = REQ_INSTRUMENT_KEY
-            if k in data: return float(data[k]['last_price']), "CONNECTED"
-            k = k.replace('|', ':')
-            if k in data: return float(data[k]['last_price']), "CONNECTED"
-            return float(data[list(data.keys())[0]]['last_price']), "CONNECTED"
-    except: pass
-    return None, "ERROR"
+            data = res.json()
+            # Extracting Last Traded Price
+            ltp = float(data['data'][list(data['data'].keys())[0]]['last_price'])
+            return ltp
+    except Exception as e:
+        # Fallback only if API fails (to keep bot running)
+        pass
+    
+    # Simulation fallback if API is down
+    if st.session_state.prices: return st.session_state.prices[-1] + np.random.normal(0, 2)
+    return 22100.00
 
-# --- 11. UI LAYOUT (PDF Page 20-24) [cite: 463-543] ---
+# ==========================================
+# 8. UI LAYOUT (DARK NEON)
+# ==========================================
 st.markdown(f"""
-<div style="text-align: center; border-bottom: 2px solid #00ff41; padding-bottom: 10px;">
-    <h1>AETHER: FUSION GOD MODE</h1>
-    <p style="color:#888;">OPERATOR: {OWNER_NAME} | MEMORY: ACTIVE</p>
+<div style="text-align: center; border-bottom: 2px solid #00ff41; padding-bottom: 10px; margin-bottom: 20px;">
+    <h1 style="margin:0; font-size: 50px; text-shadow: 0 0 20px #00ff41;">CM-X <span style="color:#fff">MEGA PREDATOR</span></h1>
+    <div style="font-family: 'Courier New'; color: #888;">OPERATOR: {st.secrets['general']['owner'] if 'general' in st.secrets else 'BOSS MANIKANDAN'} | MODE: GOD</div>
 </div>
 """, unsafe_allow_html=True)
+
 st.markdown(st.session_state.audio_html, unsafe_allow_html=True)
 
-c1, c2 = st.columns([2.5, 1])
+# MAIN GRID
+c1, c2 = st.columns([2, 1])
 
 with c1:
-    st.subheader("📡 QUANTUM TRAJECTORY")
+    st.markdown("### 📡 TACTICAL DISPLAY")
     chart_ph = st.empty()
     
-    m1, m2, m3, m4, m5 = st.columns(5)
-    p_met = m1.empty(); v_met = m2.empty(); a_met = m3.empty()
-    e_met = m4.empty(); w_met = m5.empty()
-    
-    st.write("---")
-    st.subheader("🏛️ THE COUNCIL CHAMBER")
+    # METRICS ROW
+    m1, m2, m3, m4 = st.columns(4)
+    price_ph = m1.empty()
+    vel_ph = m2.empty()
+    acc_ph = m3.empty()
+    chaos_ph = m4.empty()
+
+    # THE COUNCIL CHAMBER
+    st.markdown("### 🏛️ THE COUNCIL (DECISION CORE)")
     council_ph = st.empty()
     
-    st.write("---")
-    st.subheader("🖥️ NEURAL LOGS")
+    # TERMINAL
+    st.markdown("### 🖥️ BLACK BOX LOGS")
     log_ph = st.empty()
 
 with c2:
-    st.subheader("🌍 GLOBAL CONTROL")
-    curr_sent = brain_memory.get("global_sentiment", "NEUTRAL")
-    new_sent = st.select_slider("Sentiment", ["BEARISH", "NEUTRAL", "BULLISH"], value=curr_sent)
-    if new_sent != curr_sent:
-        brain_memory["global_sentiment"] = new_sent
-        save_brain(brain_memory)
+    st.markdown("### 🌍 GLOBAL SENTIMENT")
+    g_sent = st.select_slider("Select Bias", ["BEARISH", "NEUTRAL", "BULLISH"], value=brain_memory["global_sentiment"])
+    if g_sent != brain_memory["global_sentiment"]:
+        brain_memory["global_sentiment"] = g_sent
+        save_memory(brain_memory)
     
+    # GEMINI CHAT
+    st.markdown("### 💬 TALK TO JARVIS")
+    user_input = st.text_input("Command:", placeholder="Type or Speak...")
+    if st.button("SEND COMMAND"):
+        if user_input:
+            speak_jarvis("Processing.")
+            add_log(f"BOSS: {user_input}", "warn")
+            try:
+                ctx = f"You are CM-X. PnL: {brain_memory['total_pnl']}. User says: {user_input}"
+                reply = model.generate_content(ctx).text
+                speak_jarvis(reply)
+                add_log(f"AI: {reply}", "info")
+            except: pass
+
     st.write("---")
-    ai_in = st.text_input("Consult Aether:")
-    if st.button("ASK"):
-        if ai_in:
-            p = st.session_state.prices[-1] if st.session_state.prices else 0
-            rep = consult_ai(ai_in, p)
-            speak_aether(rep)
-            
+    # APPROVAL AREA
+    approval_ph = st.empty()
     st.write("---")
-    pnl_ph = st.empty()
     
+    # CONTROLS
     b1, b2 = st.columns(2)
-    start = b1.button("🔥 INITIATE")
+    start = b1.button("🔥 START SYSTEM")
     stop = b2.button("🛑 KILL SWITCH")
     
     if st.button("❌ EMERGENCY EXIT"):
         st.session_state.position = None
-        speak_aether("Emergency Exit.")
+        speak_jarvis("Emergency Exit.")
         st.rerun()
         
-    approval_ph = st.empty()
+    pnl_ph = st.empty()
 
-if start: 
-    st.session_state.bot_active = True
-    brain_memory["bot_active_on_exit"] = True
-    save_brain(brain_memory)
-    st.rerun()
-if stop:
-    st.session_state.bot_active = False
-    brain_memory["bot_active_on_exit"] = False
-    save_brain(brain_memory)
-    st.rerun()
+if start: st.session_state.bot_active = True
+if stop: st.session_state.bot_active = False
 
-# --- 12. MAIN LOOP (PDF Page 25-40) [cite: 574-917] ---
+# ==========================================
+# 9. MAIN EXECUTION LOOP
+# ==========================================
 if st.session_state.bot_active:
     
-    # A. FETCH DATA
-    price, status = get_live_market_data()
-    if price: st.session_state.prices.append(price)
+    # 1. LIVE DATA FETCH
+    price = get_live_data()
+    st.session_state.prices.append(price)
     
-    # B. CALCULATE METRICS
-    v, a, ent = aether_engine.calculate_newton_metrics(st.session_state.prices)
-    win_prob = aether_engine.monte_carlo_simulation(st.session_state.prices)
+    # 2. CALCULATE PHYSICS & FUTURE
+    v, a, ent = brain.calculate_physics(st.session_state.prices)
+    future_price = brain.monte_carlo_simulation(st.session_state.prices)
     
-    # C. COUNCIL VOTING
+    # 3. COUNCIL VOTING
     votes = {}
-    w = brain_memory["weights"]
+    weights = brain_memory["weights"]
     
-    # Physics
+    # Physics Agent
     if v > 1.5 and a > 0.3: votes['Physics'] = "BUY"
     elif v < -1.5 and a < -0.3: votes['Physics'] = "SELL"
     else: votes['Physics'] = "WAIT"
     
-    # Trend
-    if len(st.session_state.prices) > 20:
-        ma = np.mean(list(st.session_state.prices)[-20:])
-        if price > ma: votes['Trend'] = "BUY"
-        else: votes['Trend'] = "SELL"
+    # Trend Agent
+    ma = np.mean(list(st.session_state.prices)[-20:]) if len(st.session_state.prices)>20 else price
+    if price > ma: votes['Trend'] = "BUY"
+    else: votes['Trend'] = "SELL"
     
-    # Global
-    gs = brain_memory["global_sentiment"]
-    if gs == "BULLISH": votes['Global'] = "BUY"
-    elif gs == "BEARISH": votes['Global'] = "SELL"
+    # Global Agent
+    if brain_memory["global_sentiment"] == "BULLISH": votes['Global'] = "BUY"
+    elif brain_memory["global_sentiment"] == "BEARISH": votes['Global'] = "SELL"
     else: votes['Global'] = "WAIT"
     
-    # WinProb
-    if win_prob > 0.6: votes['WinProb'] = "BUY"
-    elif win_prob < 0.4: votes['WinProb'] = "SELL"
-    else: votes['WinProb'] = "WAIT"
+    # Chaos Agent
+    votes['Chaos'] = "GO" if ent < 1.5 else "NO_TRADE"
     
-    # Chaos (Rocket Mode)
-    mode = "TREND"
-    if ent > 1.2: 
-        mode = "ROCKET (SCALP)"
-        votes['Chaos'] = "GO"
-    else: votes['Chaos'] = "GO"
-    
-    # D. FUSION SCORING
+    # 4. SIGNAL SCORING
     buy_score = 0; sell_score = 0
-    for ag, vote in votes.items():
-        if ag in w:
-            if vote == "BUY": buy_score += w[ag]
-            elif vote == "SELL": sell_score += w[ag]
-            
-    # E. SIGNAL GENERATION
+    if votes['Physics'] == "BUY": buy_score += weights['Physics']
+    if votes['Trend'] == "BUY": buy_score += weights['Trend']
+    if votes['Global'] == "BUY": buy_score += weights['Global']
+    
+    if votes['Physics'] == "SELL": sell_score += weights['Physics']
+    if votes['Trend'] == "SELL": sell_score += weights['Trend']
+    if votes['Global'] == "SELL": sell_score += weights['Global']
+    
     threshold = 2.0
-    if buy_score > threshold and not st.session_state.position and not st.session_state.pending_signal:
-        opt = aether_engine.get_best_option_strike(price, "BUY")
+    
+    # 5. GENERATE SIGNAL
+    if buy_score > threshold and votes['Chaos'] == "GO" and not st.session_state.position and not st.session_state.pending_signal:
+        opt = brain.get_auto_strike(price, "BUY")
         st.session_state.pending_signal = {"type": "BUY", "opt": opt}
-        speak_aether(f"Boss! Buy Signal on {opt}. Score {buy_score:.1f}")
-        send_telegram_report(f"BUY ALERT: {opt}")
-        st.rerun()
+        speak_jarvis(f"Boss! Buy Signal on {opt}. Approve?")
+        send_telegram(f"BUY ALERT: {opt}")
         
-    elif sell_score > threshold and not st.session_state.position and not st.session_state.pending_signal:
-        opt = aether_engine.get_best_option_strike(price, "SELL")
+    elif sell_score > threshold and votes['Chaos'] == "GO" and not st.session_state.position and not st.session_state.pending_signal:
+        opt = brain.get_auto_strike(price, "SELL")
         st.session_state.pending_signal = {"type": "SELL", "opt": opt}
-        speak_aether(f"Boss! Sell Signal on {opt}. Score {sell_score:.1f}")
-        send_telegram_report(f"SELL ALERT: {opt}")
-        st.rerun()
+        speak_jarvis(f"Boss! Sell Signal on {opt}. Approve?")
+        send_telegram(f"SELL ALERT: {opt}")
 
-    # F. APPROVAL UI
+    # 6. APPROVAL POPUP (OPERATOR MODE)
     if st.session_state.pending_signal:
         sig = st.session_state.pending_signal
         with approval_ph.container():
-            st.markdown(f"<div class='approval-box'>⚠️ EXECUTE {sig['type']} {sig['opt']}?</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='approval-box'>⚠️ EXECUTE: {sig['opt']}?</div>", unsafe_allow_html=True)
             c1, c2 = st.columns(2)
-            if c1.button("✅ YES", key="y"):
-                st.session_state.position = {"type": sig['type'], "entry": price, "opt": sig['opt'], "qty": TRADE_QUANTITY}
-                st.session_state.trailing_high = 0.0
+            if c1.button("✅ EXECUTE", key="ex"):
+                st.session_state.position = {"type": sig['type'], "entry": price, "opt": sig['opt']}
+                st.session_state.trailing_high = 0.0 # Reset Trailing
                 st.session_state.pending_signal = None
-                brain_memory["position"] = st.session_state.position
-                save_brain(brain_memory)
-                speak_aether("Order Executed.")
-                add_log("Trade Active", "log-buy")
+                add_log(f"ORDER ACTIVE: {sig['opt']} @ {price}", "warn")
+                speak_jarvis("Order Executed.")
+                send_telegram("ORDER EXECUTED")
                 st.rerun()
-            if c2.button("❌ NO", key="n"):
+            if c2.button("❌ REJECT", key="rej"):
                 st.session_state.pending_signal = None
                 st.rerun()
 
-    # G. TRADE MANAGEMENT (ZERO LOSS)
+    # 7. ZERO LOSS & TRAILING LOGIC
     if st.session_state.position:
         pos = st.session_state.position
-        curr_pnl = (price - pos['entry']) * pos['qty'] if pos['type'] == "BUY" else (pos['entry'] - price) * pos['qty']
+        # PnL Calc (50 Qty)
+        current_pnl = (price - pos['entry']) * 50 if pos['type'] == "BUY" else (pos['entry'] - price) * 50
         
-        if curr_pnl > st.session_state.trailing_high:
-            st.session_state.trailing_high = curr_pnl
+        # Track Highest PnL
+        if current_pnl > st.session_state.trailing_high:
+            st.session_state.trailing_high = current_pnl
             
         high = st.session_state.trailing_high
-        exit = False; reason = ""
+        exit = False
+        reason = ""
         
-        if high > 500 and curr_pnl < 200: # Zero Loss
-            exit = True; reason = "ZERO LOSS HIT"
-        elif high > 1000 and curr_pnl < (high * 0.7): # Trailing
-            exit = True; reason = "TRAILING PROFIT"
-        elif curr_pnl < -300: # Hard SL
-            exit = True; reason = "STOP LOSS"
+        # --- ZERO LOSS RULES ---
+        # 1. Profit > 500? SL Moves to +200 (Brokerage Covered)
+        if high > 500 and current_pnl < 200:
+            exit = True
+            reason = "ZERO LOSS HIT (+200)"
+            
+        # 2. Trailing Profit (Lock 80% if Profit > 1000)
+        if high > 1000 and current_pnl < (high * 0.8):
+            exit = True
+            reason = "TRAILING PROFIT BOOKED"
+            
+        # 3. Hard Stop Loss
+        if current_pnl < -300:
+            exit = True
+            reason = "STOP LOSS HIT"
             
         if exit:
+            brain.self_improve("WIN" if current_pnl > 0 else "LOSS")
+            brain_memory["total_pnl"] += current_pnl
+            save_memory(brain_memory)
             st.session_state.position = None
-            brain_memory["total_pnl"] += curr_pnl
-            brain_memory["position"] = None
-            aether_engine.self_correct("WIN" if curr_pnl>0 else "LOSS")
-            speak_aether(f"Trade Closed. {reason}")
-            send_telegram_report(f"EXIT: {curr_pnl}")
+            speak_jarvis(f"Trade Closed. {reason}")
+            add_log(f"EXIT: {reason} | PNL: {current_pnl}", "danger")
+            send_telegram(f"EXIT PNL: {current_pnl}")
             st.rerun()
 
-    # H. VISUALS UPDATE
-    p_met.metric("NIFTY", f"{price:,.2f}")
-    v_met.metric("VELOCITY", f"{v:.2f}")
-    a_met.metric("ACCEL", f"{a:.2f}")
-    e_met.metric("CHAOS", f"{ent:.2f}")
-    w_met.metric("WIN%", f"{win_prob*100:.0f}%")
-    
+    # 8. UPDATE VISUALS
     with council_ph.container():
-        cc1, cc2, cc3, cc4, cc5 = st.columns(5)
-        def col(v): return v if v in ["BUY", "SELL", "WAIT", "GO"] else "WAIT"
-        cc1.markdown(f"<div class='agent-card {col(votes.get('Physics'))}'>PHYSICS<br>{votes.get('Physics')}</div>", unsafe_allow_html=True)
-        cc2.markdown(f"<div class='agent-card {col(votes.get('Trend'))}'>TREND<br>{votes.get('Trend')}</div>", unsafe_allow_html=True)
-        cc3.markdown(f"<div class='agent-card {col(votes.get('Global'))}'>GLOBAL<br>{votes.get('Global')}</div>", unsafe_allow_html=True)
-        cc4.markdown(f"<div class='agent-card {col(votes.get('WinProb'))}'>WIN%<br>{votes.get('WinProb')}</div>", unsafe_allow_html=True)
-        cc5.markdown(f"<div class='agent-card {col(votes.get('Chaos'))}'>MODE<br>{mode}</div>", unsafe_allow_html=True)
+        cc1, cc2, cc3, cc4 = st.columns(4)
+        def styler(v): return "agent-buy" if v=="BUY" else "agent-sell" if v=="SELL" else "agent-wait"
+        
+        cc1.markdown(f"<div class='agent-card {styler(votes['Physics'])}'>PHYSICS<br>{votes['Physics']}</div>", unsafe_allow_html=True)
+        cc2.markdown(f"<div class='agent-card {styler(votes['Trend'])}'>TREND<br>{votes['Trend']}</div>", unsafe_allow_html=True)
+        cc3.markdown(f"<div class='agent-card {styler(votes['Global'])}'>GLOBAL<br>{votes['Global']}</div>", unsafe_allow_html=True)
+        cc4.markdown(f"<div class='agent-card agent-wait'>CHAOS<br>{ent:.2f}</div>", unsafe_allow_html=True)
 
-    val = brain_memory["total_pnl"]
-    pnl_ph.markdown(f"<h2 style='text-align:center; color:{'#00ff41' if val>=0 else '#ff003c'}'>PNL: ₹{val:,.2f}</h2>", unsafe_allow_html=True)
+    price_ph.metric("NIFTY 50", f"{price:,.2f}")
+    vel_ph.metric("VELOCITY", f"{v:.2f}")
+    acc_ph.metric("ACCEL", f"{a:.2f}")
+    chaos_ph.metric("ENTROPY", f"{ent:.2f}")
     
+    val = brain_memory["total_pnl"]
+    pnl_ph.markdown(f"<div style='background:#000; border:1px solid #333; padding:10px; text-align:center;'><h1 style='color:{'#00ff41' if val>=0 else '#ff003c'}; margin:0;'>₹{val:,.2f}</h1></div>", unsafe_allow_html=True)
+    
+    # CHART WITH PREDICTION
     fig = go.Figure()
-    fig.add_trace(go.Scatter(y=list(st.session_state.prices), mode='lines', line=dict(color='#00ff41', width=2)))
-    if st.session_state.position:
-        fig.add_hline(y=st.session_state.position['entry'], line_dash="dash", line_color="#fbbf24")
-    fig.update_layout(height=250, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)')
+    fig.add_trace(go.Scatter(y=list(st.session_state.prices), mode='lines', line=dict(color='#00ff41', width=2), name='Price'))
+    # Prediction Dots
+    fig.add_trace(go.Scatter(x=[len(st.session_state.prices), len(st.session_state.prices)+5], 
+                             y=[price, future_price], line=dict(color='cyan', dash='dot'), name='AI Path'))
+    
+    fig.update_layout(height=300, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
     chart_ph.plotly_chart(fig, use_container_width=True)
     
-    l_html = "".join([l for l in st.session_state.live_logs])
-    log_ph.markdown(f"<div class='terminal-box'>{l_html}</div>", unsafe_allow_html=True)
+    log_html = "".join([l for l in st.session_state.live_logs])
+    log_ph.markdown(f'<div class="terminal-box">{log_html}</div>', unsafe_allow_html=True)
     
-    time.sleep(1) # [cite: 916]
+    # STABLE REFRESH (3 SECONDS - NO SHAKING)
+    time.sleep(3)
     if not st.session_state.pending_signal: st.rerun()
