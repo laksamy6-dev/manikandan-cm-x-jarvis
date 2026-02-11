@@ -344,4 +344,4 @@ if st.session_state.bot_active:
         log_ph.markdown(f"<div class='terminal-box'>{l_html}</div>", unsafe_allow_html=True)
         
         time.sleep(1)
-        st.rerun()
+        
