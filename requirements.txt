@@ -3,7 +3,7 @@ pandas
 numpy
 plotly
 requests
-google-genai[aiohttp]
+google-genai
 gTTS
 scipy
 pytz
