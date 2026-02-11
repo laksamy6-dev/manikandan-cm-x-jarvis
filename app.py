@@ -40,7 +40,6 @@ try:
     else: TG_TOKEN = None; TG_ID = None
         
     genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
     
 except Exception as e:
     st.error(f"SECRETS ERROR: {e}")
@@ -113,7 +112,22 @@ def send_telegram(msg):
         try: requests.get(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage", params={"chat_id": TG_ID, "text": f"🧬 CM-X: {msg}"})
         except: pass
 
-# --- 7. COGNITIVE ENGINE ---
+# --- 7. SMART AI ENGINE (AUTO-SWITCH FIX) ---
+def ask_gemini(prompt):
+    """Tries multiple models to avoid 404 Errors"""
+    models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+    
+    for model_name in models_to_try:
+        try:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            continue # Try next model
+            
+    return "AI Error: All models busy."
+
+# --- 8. COGNITIVE ENGINE ---
 class CognitiveEngine:
     def calculate_newton_metrics(self, prices_deque):
         p = np.array(list(prices_deque))
@@ -148,7 +162,7 @@ class CognitiveEngine:
 
 aether_engine = CognitiveEngine()
 
-# --- 8. LIVE DATA ---
+# --- 9. LIVE DATA ---
 def get_live_market_data():
     if not UPSTOX_ACCESS_TOKEN: return None
     headers = {'Authorization': f'Bearer {UPSTOX_ACCESS_TOKEN}', 'Accept': 'application/json'}
@@ -161,7 +175,7 @@ def get_live_market_data():
     except: pass
     return None
 
-# --- 9. UI LAYOUT ---
+# --- 10. UI LAYOUT ---
 st.markdown(f"""
 <div style="text-align: center; border-bottom: 2px solid #00ff41; padding-bottom: 10px;">
     <h1>AETHER: FUSION GOD MODE</h1>
@@ -185,10 +199,11 @@ with c1:
     st.subheader("🖥️ NEURAL LOGS")
     log_ph = st.empty()
     
-    # --- NEW: ORDER BOOK ---
+    # --- ORDER BOOK (FIXED) ---
     st.subheader("📖 ORDER BOOK")
     if brain_memory["order_book"]:
-        order_df = pd.DataFrame(brain_memory["order_book"])
+        # Show last 5 trades reversely
+        order_df = pd.DataFrame(brain_memory["order_book"][::-1])
         st.dataframe(order_df, use_container_width=True, hide_index=True)
     else:
         st.info("No Trades Yet")
@@ -199,11 +214,10 @@ with c2:
     if st.button("SEND MESSAGE"):
         if user_q:
             add_log(f"BOSS: {user_q}", "info")
-            try:
-                p = st.session_state.prices[-1] if st.session_state.prices else 0
-                ans = gemini_model.generate_content(f"You are Jarvis (Tamil). Price: {p}. User: {user_q}. Reply briefly in Tamil.").text
-                speak_aether(ans)
-            except Exception as e: speak_aether(f"Connection Error: {e}")
+            p = st.session_state.prices[-1] if st.session_state.prices else 0
+            # Call Smart AI Switcher
+            ans = ask_gemini(f"You are Jarvis (Tamil). Price: {p}. User: {user_q}. Reply briefly in Tamil.")
+            speak_aether(ans)
 
     st.write("---")
     curr_sent = brain_memory.get("global_sentiment", "NEUTRAL")
@@ -223,7 +237,7 @@ with c2:
 if start: st.session_state.bot_active = True
 if stop: st.session_state.bot_active = False
 
-# --- 10. MAIN LOOP ---
+# --- 11. MAIN LOOP ---
 if st.session_state.bot_active:
     
     price = get_live_market_data()
