@@ -275,5 +275,5 @@ if st.session_state.bot:
     val = brain["pnl"]
     pnl_ph.markdown(f"<h1 style='text-align:center; color:{'#0f0' if val>=0 else '#f00'}'>PNL: ₹{val:.2f}</h1>", unsafe_allow_html=True)
 
-    time.sleep(1)
+    time.sleep(3)
     if not st.session_state.signal: st.rerun()
